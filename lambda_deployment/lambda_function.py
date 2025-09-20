@@ -59,6 +59,10 @@ class Invoice:
         for item in self.line_items[1:]:
             total = Money(total.amount + item.line_total.amount, total.currency)
         return total
+    
+    @property
+    def is_overdue(self) -> bool:
+        return self.due_date < datetime.now() and self.status not in [InvoiceStatus.PAID, InvoiceStatus.CANCELLED]
 
 # Domain Service
 class InvoiceNumberGenerator:
@@ -137,11 +141,15 @@ class InvoiceApplicationService:
     
     def _get_invoice_by_id(self, invoice_id: str) -> Optional[Invoice]:
         try:
+            print(f"Looking up invoice in DynamoDB with PK: INVOICE#{invoice_id}")
             response = self.table.get_item(
                 Key={'PK': f'INVOICE#{invoice_id}', 'SK': 'METADATA'}
             )
             
+            print(f"DynamoDB response: {response}")
+            
             if 'Item' not in response:
+                print(f"No item found for invoice {invoice_id}")
                 return None
             
             item = response['Item']
@@ -179,6 +187,33 @@ class InvoiceApplicationService:
         except Exception as e:
             print(f"Error getting invoice {invoice_id}: {str(e)}")
             return None
+    
+    def detect_and_update_overdue(self) -> List[str]:
+        # Get all sent invoices
+        response = self.table.scan(
+            FilterExpression='SK = :sk AND #status = :status',
+            ExpressionAttributeNames={'#status': 'status'},
+            ExpressionAttributeValues={
+                ':sk': 'METADATA',
+                ':status': 'SENT'
+            }
+        )
+        
+        updated_invoices = []
+        for item in response.get('Items', []):
+            due_date = datetime.fromisoformat(item['due_date'])
+            if due_date < datetime.now():
+                invoice_id = item['invoice_id']
+                # Update status to OVERDUE
+                self.table.update_item(
+                    Key={'PK': f'INVOICE#{invoice_id}', 'SK': 'METADATA'},
+                    UpdateExpression='SET #status = :status',
+                    ExpressionAttributeNames={'#status': 'status'},
+                    ExpressionAttributeValues={':status': 'OVERDUE'}
+                )
+                updated_invoices.append(invoice_id)
+        
+        return updated_invoices
 
 def lambda_handler(event, context):
     """Fixed Lambda handler with proper routing"""
@@ -199,19 +234,36 @@ def lambda_handler(event, context):
         
         print(f"Method: {http_method}, Path: '{path}'")
         print(f"Query params: {query_params}")
+        print(f"Query params type: {type(query_params)}")
         print(f"Path params: {path_params}")
         print(f"Resource: {event.get('resource', 'N/A')}")
         
+        # Force check for invoice_id
+        invoice_id_check = None
+        if query_params:
+            invoice_id_check = query_params.get('invoice_id')
+            print(f"Found invoice_id in query_params: {invoice_id_check}")
+        else:
+            print("query_params is None or empty")
+        
         # Route based on method and path (handle empty path)
-        if http_method == 'POST':
+        if http_method == 'POST' and ('overdue' in path or 'overdue-check' in path):
+            return handle_overdue_check(invoice_service)
+        elif http_method == 'POST':
             return handle_create_invoice(event, invoice_service)
             
         elif http_method == 'GET':
             # Check if specific invoice requested via query parameter
-            invoice_id = query_params.get('invoice_id')
-            if invoice_id:
+            invoice_id = None
+            if query_params and isinstance(query_params, dict):
+                invoice_id = query_params.get('invoice_id')
+                print(f"Extracted invoice_id: '{invoice_id}'")
+            
+            if invoice_id and invoice_id.strip():
+                print(f"Getting specific invoice: {invoice_id}")
                 return handle_get_specific_invoice(invoice_id, invoice_service)
             else:
+                print("No valid invoice_id found, getting all invoices")
                 return handle_get_all_invoices(table)
                 
         elif http_method == 'GET' and '/invoices/' in path:
@@ -231,7 +283,7 @@ def lambda_handler(event, context):
         elif http_method == 'POST' and 'payments' in path:
             return handle_process_payment(event, invoice_service)
             
-        elif http_method == 'POST' and 'overdue' in path:
+        elif http_method == 'POST' and ('overdue' in path or 'overdue-check' in path):
             return handle_overdue_check(invoice_service)
             
         else:
@@ -244,9 +296,21 @@ def lambda_handler(event, context):
 def handle_get_specific_invoice(invoice_id, invoice_service):
     """Handle getting a specific invoice"""
     try:
+        print(f"Searching for invoice with ID: {invoice_id}")
         invoice = invoice_service._get_invoice_by_id(invoice_id)
+        print(f"Invoice found: {invoice is not None}")
+        
         if not invoice:
-            return error_response(404, "Invoice not found")
+            print(f"Invoice {invoice_id} not found in database")
+            return {
+                'statusCode': 404,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({
+                    'error': 'Invoice not found',
+                    'invoice_id': invoice_id,
+                    'message': f'No invoice found with ID: {invoice_id}'
+                })
+            }
         
         return {
             'statusCode': 200,
@@ -431,4 +495,27 @@ def handle_get_invoices(table):
             'statusCode': 400,
             'headers': {'Content-Type': 'application/json'},
             'body': json.dumps({'error': f'Failed to get invoices: {str(e)}'})
+        }
+
+def handle_overdue_check(invoice_service):
+    """Handle overdue invoice detection"""
+    try:
+        updated_invoices = invoice_service.detect_and_update_overdue()
+        
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({
+                'success': True,
+                'updated_invoices': updated_invoices,
+                'count': len(updated_invoices),
+                'message': f'Updated {len(updated_invoices)} overdue invoices'
+            })
+        }
+        
+    except Exception as e:
+        return {
+            'statusCode': 400,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'error': f'Failed to check overdue invoices: {str(e)}'})
         }
