@@ -214,6 +214,31 @@ class InvoiceApplicationService:
                 updated_invoices.append(invoice_id)
         
         return updated_invoices
+    
+    def process_payment(self, invoice_id: str, payment_amount: Decimal) -> Invoice:
+        invoice = self._get_invoice_by_id(invoice_id)
+        if not invoice:
+            raise ValueError(f"Invoice {invoice_id} not found")
+        
+        if payment_amount >= invoice.total_amount.amount:
+            invoice.status = InvoiceStatus.PAID
+            invoice.version += 1
+            self._save_invoice(invoice)
+            self._save_payment_record(invoice_id, payment_amount, "FULL_PAYMENT")
+        else:
+            self._save_payment_record(invoice_id, payment_amount, "PARTIAL_PAYMENT")
+        
+        return invoice
+    
+    def _save_payment_record(self, invoice_id: str, amount: Decimal, payment_type: str):
+        payment_item = {
+            'PK': f'INVOICE#{invoice_id}',
+            'SK': f'PAYMENT#{datetime.now().isoformat()}',
+            'amount': amount,
+            'payment_type': payment_type,
+            'payment_date': datetime.now().isoformat()
+        }
+        self.table.put_item(Item=payment_item)
 
 def lambda_handler(event, context):
     """Fixed Lambda handler with proper routing"""
@@ -249,6 +274,8 @@ def lambda_handler(event, context):
         # Route based on method and path (handle empty path)
         if http_method == 'POST' and ('overdue' in path or 'overdue-check' in path):
             return handle_overdue_check(invoice_service)
+        elif http_method == 'POST' and 'payments' in path:
+            return handle_process_payment(event, invoice_service)
         elif http_method == 'POST':
             return handle_create_invoice(event, invoice_service)
             
@@ -518,4 +545,39 @@ def handle_overdue_check(invoice_service):
             'statusCode': 400,
             'headers': {'Content-Type': 'application/json'},
             'body': json.dumps({'error': f'Failed to check overdue invoices: {str(e)}'})
+        }
+
+def handle_process_payment(event, invoice_service):
+    """Handle payment processing"""
+    try:
+        body = json.loads(event.get('body', '{}'))
+        invoice_id = body.get('invoice_id')
+        payment_amount = Decimal(str(body.get('payment_amount', 0)))
+        
+        if not invoice_id or payment_amount <= 0:
+            return {
+                'statusCode': 400,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({'error': 'invoice_id and payment_amount are required'})
+            }
+        
+        invoice = invoice_service.process_payment(invoice_id, payment_amount)
+        
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({
+                'success': True,
+                'invoice_id': invoice.invoice_id,
+                'payment_amount': float(payment_amount),
+                'new_status': invoice.status.value,
+                'message': 'Payment processed successfully'
+            }, default=str)
+        }
+        
+    except Exception as e:
+        return {
+            'statusCode': 400,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'error': f'Failed to process payment: {str(e)}'})
         }
