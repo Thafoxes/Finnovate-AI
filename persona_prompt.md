@@ -1,0 +1,35 @@
+# PERSONA PROMPT 1
+
+In this chat, we will be using the Working Backwards Toolkit (WBT) from Korn Ferry’s Applied Enterprise Innovation (AEI) team to help my company develop new product/service ideas to delight customers and generate meaningful profitability for our business.
+To start, I would like your help to build a Tool called a Persona. When I say, Persona, I do not mean “any” Persona Tool. We will specifically be using the Persona Tool that is one of several tools used in WBT that allows a business to quickly use experimentation to gain deep empathy for its customers. 
+The Persona Tool is made up of four Quadrants: Facts, Goals, Pains, and Behaviours (the order matters). 
+Facts are demographic, psychographic or other descriptors of ONE sample customer (not a stereotype or a representation of a larger group, we really mean one unique individual with Facts specific to them). 
+Goals are the customer’s aspirations – what the customer wants (i.e.: in life or in work). However, we will limit the Goals we record in the Persona Tool to those goals that are reasonably 1) current (customer is looking to solve these goals relatively quickly) and 2) actionable (we need to be able to build a solution so the goal needs to be solvable by my company). Also, for each goal, please capture whether this Goal comes from Social, Emotional, or Functional origins. For example, a Social Goal is one derived because the customer is comparing themselves to other people whereas an Emotional Goal arises from the need to address some internal emotion. Functional Goals derive from the need to solve a specific quantitative problem (like, “I need more hard drive space”). Finally, for each Goal, we capture the Measure of Success which is what the customer might say “in their own words” if they achieved their Goal.
+Pains are the things that are blocking the customer from achieving one or more of their Goals. Note that each Pain MUST link to at least 1 Goal in the Goal Quadrant. For each Pain, please explain how Urgently and Intensely the customer is feeling the Pain (how unhappy are they with the current situation) and rate each Pain’s Urgency and Intensity using a 3-point scale of High, Medium, or Low. Finally, in thinking about the Customer Journey, identify points at which the customer feels the pain most intensely (they are the most unhappy with status quo).
+Behaviours are the current actions that the customer is taking to remove their Pains and achieve their Goals. The Behaviours identify the Persona as an Early Adopter, as defined in Geoffrey Moore's book "Crossing the Chasm".  Every Behaviour must link to at least one Pain in the Pain Quadrant. Please document how much effort the customer is putting into the Behaviour: “Seeking solutions” is good, “taking explicit actions” to solve is better, and any “actions they are taking that require payment or time commitment“ are best! Finally, document how efficacious each behaviour is. How well is that behaviour solving the current problem? 
+OK. Those are the rules. Now let’s build a Persona. Please generate the Facts, Goals, Pains, and Behaviours. To give you a general target of the detail required, in general, good Persona’s have between 8-10 Facts, 2-3 of their most current and actionable Goals, 4-6 of their most intense and urgent Pains, and 3-5 Behaviours.
+Please build a Persona with the customer details I have add in the next prompt.  Please also make sure the persona is of a customer relevant to my industry, which I will also add in the next prompt.
+
+# PERSONA PROMPT 2
+
+Persona Name: 
+Persona Occupation: 
+Persona Interests: 
+Persona Location: 
+My Industry:
+
+# [HYPOTHESIS PROMPT]
+The next tool in WBT generates the Customer Hypothesis and the Problem Hypothesis which we will use to build experiments. A Customer Hypothesis is a sentence formed by combining Facts and Behaviours. A Problem Hypothesis is a sentence formed by combining Pains and Goals. 
+Given the number of Facts, Goals, Pains and Behaviours, one 'could' generate hundreds or thousands of potential hypotheses or very 'long' hypotheses. Instead, we need to narrow down to one Customer Hypothesis and one Problem Hypothesis that we will experiment with, and use our judgement to select the Customer Hypothesis and the Problem Hypothesis that we think will generate the most interesting learnings if experimented upon while optimizing for lower word count so that we can keep the costs and time of experimentation down with fewer variables in the hypotheses to test. 
+Lastly, it is important that hypotheses do not refer to any solutions.  We will be exploring solutions to the pains and gaols later, so for now we want to remain as open as possible.
+Appreciating the fuzziness of the request, would you please generate one of each type of hypothesis given those instructions and the Persona you just created and provide your rationale for why you chose these?  Follow that by combining the Customer Hypothesis and the Problem Hypothesis into a single paragraph, which we will call the Hypothesis.
+Next, decompose the Hypothesis into 10-15 explicit and implicit Predictions that underpin the Hypothesis.
+
+
+# [INTERVIEW QUESTIONS PROMPT]
+WBT uses Customer Discovery Interviews (CDIs) as a form of Experiment, to test whether real people validate or invalidate the Predictions from the Hypothesis that we’ve made.  The questions in CDIs need to be carefully constructed in order to get truer responses from interviewees.  We need to avoid anchoring questions, leading questions, questions that are mired in mental models or cognitive bias, etc.  Good examples of question best practices can be found in the book, “The Mom Test” or in the videos from the lift channel on youtube. 
+When designing questions, note that we try to avoid questions that ask the interviewee to speculate about the future or their “ideal” self. Instead, we want to focus them on things they actually did in the past. 
+For example, a question like, “When you think about managing your finances, what are the most important factors for you?” should be rewritten as “In the last 6 months, what were the 3 most important factors that you used when managing your finances?” 
+Similarly, “When deciding whether to withdraw or keep investments, what typically drives your choice?” should be rewritten as, “Think about the last 3 times you redeemed your unit trust. Why did you decide to redeem?”
+As the Hypothesis is quite long and contains many Predictions we have about our persona, structure the questions to test the Predictions we have least confidence about, or what we call the Riskiest Predictions.
+Based on this guidance, can you please propose a baseline interview script of 10 well-formed questions that you would want to ask as part of CDI for the Riskiest Predictions that we’ve already established.
