@@ -6,9 +6,11 @@ import {
 } from '@mui/material';
 import { Edit, Delete, Payment, Send } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useInvoice, useUpdateInvoiceStatus, useDeleteInvoice, useProcessPayment } from '../hooks/useInvoices';
+import { useInvoice, useUpdateInvoiceStatus, useDeleteInvoice } from '../hooks/useInvoices';
 import StatusBadge from '../components/StatusBadge';
 import AmountDisplay from '../components/AmountDisplay';
+import PaymentModal from '../components/PaymentModal';
+import PaymentHistory from '../components/PaymentHistory';
 import { InvoiceStatus } from '../types';
 
 const InvoiceDetails: React.FC = () => {
@@ -17,10 +19,8 @@ const InvoiceDetails: React.FC = () => {
   const { data: invoice, isLoading, error } = useInvoice(id!);
   const updateStatus = useUpdateInvoiceStatus();
   const deleteInvoice = useDeleteInvoice();
-  const processPayment = useProcessPayment();
 
   const [paymentDialog, setPaymentDialog] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState('');
   const [statusDialog, setStatusDialog] = useState(false);
   const [newStatus, setNewStatus] = useState<InvoiceStatus>('SENT');
 
@@ -36,24 +36,7 @@ const InvoiceDetails: React.FC = () => {
     }
   };
 
-  const handlePayment = async () => {
-    const amount = parseFloat(paymentAmount);
-    if (amount <= 0 || amount > invoice.remaining_balance) {
-      alert('Invalid payment amount');
-      return;
-    }
 
-    try {
-      await processPayment.mutateAsync({
-        invoice_id: invoice.invoice_id,
-        amount: amount,
-      });
-      setPaymentDialog(false);
-      setPaymentAmount('');
-    } catch (error) {
-      alert('Failed to process payment');
-    }
-  };
 
   const handleDelete = async () => {
     if (invoice.status !== 'DRAFT') {
@@ -183,28 +166,19 @@ const InvoiceDetails: React.FC = () => {
         </Grid>
       </Paper>
 
-      {/* Payment Dialog */}
-      <Dialog open={paymentDialog} onClose={() => setPaymentDialog(false)}>
-        <DialogTitle>Process Payment</DialogTitle>
-        <DialogContent>
-          <Typography gutterBottom>
-            Remaining Balance: <AmountDisplay amount={invoice.remaining_balance} />
-          </Typography>
-          <TextField
-            fullWidth
-            label="Payment Amount"
-            type="number"
-            value={paymentAmount}
-            onChange={(e) => setPaymentAmount(e.target.value)}
-            inputProps={{ min: 0, max: invoice.remaining_balance, step: 0.01 }}
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPaymentDialog(false)}>Cancel</Button>
-          <Button onClick={handlePayment} variant="contained">Process Payment</Button>
-        </DialogActions>
-      </Dialog>
+      <Box mt={3}>
+        <PaymentHistory invoiceId={invoice.invoice_id} />
+      </Box>
+
+      <PaymentModal
+        open={paymentDialog}
+        onClose={() => setPaymentDialog(false)}
+        invoice={{
+          invoice_id: invoice.invoice_id,
+          invoice_number: invoice.invoice_number,
+          remaining_balance: invoice.remaining_balance,
+        }}
+      />
 
       {/* Status Update Dialog */}
       <Dialog open={statusDialog} onClose={() => setStatusDialog(false)}>

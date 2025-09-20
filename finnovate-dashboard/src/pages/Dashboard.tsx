@@ -2,20 +2,23 @@ import React from 'react';
 import { Box, Grid, Paper, Typography, Card, CardContent } from '@mui/material';
 import { Receipt, AttachMoney, Schedule, TrendingUp } from '@mui/icons-material';
 import { useInvoices } from '../hooks/useInvoices';
+import { useOptimizedInvoiceData } from '../hooks/useOptimizedData';
 import AmountDisplay from '../components/AmountDisplay';
+import CustomerStats from '../components/CustomerStats';
+import LoadingSpinner from '../components/LoadingSpinner';
+import DSOTracker from '../components/DSOTracker';
+import CashFlowChart from '../components/CashFlowChart';
+import PaymentTrendsChart from '../components/PaymentTrendsChart';
+import OverdueAnalysis from '../components/OverdueAnalysis';
+import CustomerSegmentChart from '../components/CustomerSegmentChart';
 
 const Dashboard: React.FC = () => {
-  const { data: invoices = [] } = useInvoices();
+  const { data: invoices = [], isLoading } = useInvoices();
+  const { stats } = useOptimizedInvoiceData(invoices);
 
-  const stats = {
-    totalInvoices: invoices.length,
-    totalAmount: invoices.reduce((sum, inv) => sum + inv.total_amount, 0),
-    paidAmount: invoices.reduce((sum, inv) => sum + inv.paid_amount, 0),
-    overdueCount: invoices.filter(inv => inv.status === 'OVERDUE').length,
-    draftCount: invoices.filter(inv => inv.status === 'DRAFT').length,
-    sentCount: invoices.filter(inv => inv.status === 'SENT').length,
-    paidCount: invoices.filter(inv => inv.status === 'PAID').length,
-  };
+  if (isLoading) {
+    return <LoadingSpinner message="Loading dashboard..." variant="skeleton" rows={6} />;
+  }
 
   const StatCard = ({ title, value, icon, color = 'primary' }: any) => (
     <Card>
@@ -49,7 +52,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Invoices"
-            value={stats.totalInvoices}
+            value={stats.total}
             icon={<Receipt fontSize="large" />}
             color="primary"
           />
@@ -73,7 +76,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Overdue Invoices"
-            value={stats.overdueCount}
+            value={stats.overdue}
             icon={<Schedule fontSize="large" />}
             color="error"
           />
@@ -89,19 +92,19 @@ const Dashboard: React.FC = () => {
             <Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Draft:</Typography>
-                <Typography>{stats.draftCount}</Typography>
+                <Typography>{stats.draft}</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Sent:</Typography>
-                <Typography>{stats.sentCount}</Typography>
+                <Typography>{stats.sent}</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Paid:</Typography>
-                <Typography>{stats.paidCount}</Typography>
+                <Typography>{stats.paid}</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Overdue:</Typography>
-                <Typography color="error">{stats.overdueCount}</Typography>
+                <Typography color="error">{stats.overdue}</Typography>
               </Box>
             </Box>
           </Paper>
@@ -123,7 +126,7 @@ const Dashboard: React.FC = () => {
               </Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Outstanding:</Typography>
-                <AmountDisplay amount={stats.totalAmount - stats.paidAmount} />
+                <AmountDisplay amount={stats.outstandingAmount} />
               </Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Collection Rate:</Typography>
@@ -136,6 +139,32 @@ const Dashboard: React.FC = () => {
               </Box>
             </Box>
           </Paper>
+        </Grid>
+      </Grid>
+
+      <Box mt={4}>
+        <CustomerStats />
+      </Box>
+
+      <Box mt={4}>
+        <DSOTracker />
+      </Box>
+
+      <Grid container spacing={3} mt={2}>
+        <Grid item xs={12} lg={8}>
+          <CashFlowChart />
+        </Grid>
+        <Grid item xs={12} lg={4}>
+          <PaymentTrendsChart />
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={3} mt={2}>
+        <Grid item xs={12} lg={6}>
+          <OverdueAnalysis />
+        </Grid>
+        <Grid item xs={12} lg={6}>
+          <CustomerSegmentChart />
         </Grid>
       </Grid>
     </Box>

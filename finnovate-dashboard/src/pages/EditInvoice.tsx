@@ -1,27 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, TextField, Button, IconButton, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
 import { Add, Delete, Save, Cancel } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { useCreateInvoice } from '../hooks/useInvoices';
-import { CreateInvoiceForm, InvoiceLineItem } from '../types';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useInvoice, useUpdateInvoice } from '../hooks/useInvoices';
+import { UpdateInvoiceForm, InvoiceLineItem } from '../types';
 import AmountDisplay from '../components/AmountDisplay';
-import HelpTooltip from '../components/HelpTooltip';
 
-const CreateInvoice: React.FC = () => {
+const EditInvoice: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const createInvoice = useCreateInvoice();
+  const { data: invoice, isLoading } = useInvoice(id!);
+  const updateInvoice = useUpdateInvoice();
 
-  const [formData, setFormData] = useState<CreateInvoiceForm>({
-    customer_id: '',
+  const [formData, setFormData] = useState<UpdateInvoiceForm>({
     customer_name: '',
     customer_email: '',
     due_date: '',
     line_items: [{ description: '', quantity: 1, unit_price: 0 }],
   });
+
+  useEffect(() => {
+    if (invoice) {
+      setFormData({
+        customer_name: invoice.customer_name,
+        customer_email: invoice.customer_email,
+        due_date: invoice.due_date,
+        line_items: invoice.line_items.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        })),
+      });
+    }
+  }, [invoice]);
 
   const addLineItem = () => {
     setFormData(prev => ({
@@ -56,36 +70,46 @@ const CreateInvoice: React.FC = () => {
     e.preventDefault();
     
     if (!formData.customer_name || !formData.customer_email || !formData.due_date) {
-      toast.error('Please fill in all required fields');
+      alert('Please fill in all required fields');
       return;
     }
 
     if (formData.line_items.some(item => !item.description || item.quantity <= 0 || item.unit_price <= 0)) {
-      toast.error('Please complete all line items with valid values');
+      alert('Please complete all line items');
       return;
     }
 
     try {
-      await createInvoice.mutateAsync({
-        ...formData,
-        customer_id: formData.customer_id || `CUST-${Date.now()}`,
+      await updateInvoice.mutateAsync({
+        invoiceId: id!,
+        data: formData,
       });
-      toast.success('Invoice created successfully!');
-      navigate('/invoices');
+      navigate(`/invoices/${id}`);
     } catch (error) {
-      toast.error('Failed to create invoice. Please try again.');
+      alert('Failed to update invoice');
     }
   };
+
+  if (isLoading) return <Typography>Loading invoice...</Typography>;
+  if (!invoice) return <Typography color="error">Invoice not found</Typography>;
+  if (invoice.status !== 'DRAFT') {
+    return (
+      <Box>
+        <Typography color="error">Only DRAFT invoices can be edited</Typography>
+        <Button onClick={() => navigate(`/invoices/${id}`)}>Back to Invoice</Button>
+      </Box>
+    );
+  }
 
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Create Invoice</Typography>
+        <Typography variant="h4">Edit Invoice</Typography>
         <Box>
           <Button
             variant="outlined"
             startIcon={<Cancel />}
-            onClick={() => navigate('/invoices')}
+            onClick={() => navigate(`/invoices/${id}`)}
             sx={{ mr: 2 }}
           >
             Cancel
@@ -94,9 +118,9 @@ const CreateInvoice: React.FC = () => {
             variant="contained"
             startIcon={<Save />}
             onClick={handleSubmit}
-            disabled={createInvoice.isPending}
+            disabled={updateInvoice.isPending}
           >
-            Create Invoice
+            Save Changes
           </Button>
         </Box>
       </Box>
@@ -105,16 +129,13 @@ const CreateInvoice: React.FC = () => {
         <form onSubmit={handleSubmit}>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-              <Box display="flex" alignItems="center">
-                <TextField
-                  fullWidth
-                  label="Customer Name"
-                  required
-                  value={formData.customer_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
-                />
-                <HelpTooltip title="Enter the full name of the customer or company" />
-              </Box>
+              <TextField
+                fullWidth
+                label="Customer Name"
+                required
+                value={formData.customer_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
+              />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
@@ -124,14 +145,6 @@ const CreateInvoice: React.FC = () => {
                 required
                 value={formData.customer_email}
                 onChange={(e) => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Customer ID (Optional)"
-                value={formData.customer_id}
-                onChange={(e) => setFormData(prev => ({ ...prev, customer_id: e.target.value }))}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -221,4 +234,4 @@ const CreateInvoice: React.FC = () => {
   );
 };
 
-export default CreateInvoice;
+export default EditInvoice;

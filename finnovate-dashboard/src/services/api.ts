@@ -1,4 +1,4 @@
-import { Invoice, CreateInvoiceForm, PaymentForm, ApiResponse } from '../types';
+import { Invoice, Customer, CreateInvoiceForm, UpdateInvoiceForm, PaymentForm, PaymentHistory, ApiResponse } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
 
@@ -42,6 +42,14 @@ class ApiService {
     return response.data;
   }
 
+  async updateInvoice(invoiceId: string, invoiceData: UpdateInvoiceForm): Promise<Invoice> {
+    const response = await this.request<ApiResponse<Invoice>>(`/invoices/${invoiceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(invoiceData),
+    });
+    return response.data;
+  }
+
   async updateInvoiceStatus(invoiceId: string, status: string): Promise<Invoice> {
     const response = await this.request<ApiResponse<Invoice>>(`/invoices`, {
       method: 'PUT',
@@ -65,6 +73,27 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(paymentData),
     });
+  }
+
+  async getPaymentHistory(invoiceId: string): Promise<PaymentHistory> {
+    const response = await this.request<ApiResponse<PaymentHistory>>(`/payments/${invoiceId}`);
+    return response.data;
+  }
+
+  // Customer operations
+  async getCustomers(): Promise<Customer[]> {
+    const response = await this.request<ApiResponse<Customer[]>>('/customers');
+    return response.data;
+  }
+
+  async getCustomer(customerId: string): Promise<Customer> {
+    const response = await this.request<ApiResponse<Customer>>(`/customers/${customerId}`);
+    return response.data;
+  }
+
+  async getCustomerInvoices(customerId: string): Promise<Invoice[]> {
+    const response = await this.request<ApiResponse<Invoice[]>>(`/customers/${customerId}/invoices`);
+    return response.data;
   }
 
   // Overdue check

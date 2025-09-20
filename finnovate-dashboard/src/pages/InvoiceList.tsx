@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import {
   Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, TextField, MenuItem, IconButton, Typography, Fab
+  Button, TextField, MenuItem, IconButton, Typography, Checkbox
 } from '@mui/material';
-import { Add, Edit, Delete, Visibility, Search } from '@mui/icons-material';
+import { Add, Edit, Delete, Visibility, Search, Settings } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useInvoices, useDeleteInvoice } from '../hooks/useInvoices';
 import StatusBadge from '../components/StatusBadge';
 import AmountDisplay from '../components/AmountDisplay';
-import { InvoiceStatus } from '../types';
+import BulkOperations from '../components/BulkOperations';
+import ExportFunctionality from '../components/ExportFunctionality';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { InvoiceStatus, Invoice } from '../types';
 
 const InvoiceList: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +20,7 @@ const InvoiceList: React.FC = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | ''>('');
+  const [selectedInvoices, setSelectedInvoices] = useState<Invoice[]>([]);
 
   const filteredInvoices = invoices.filter(invoice => {
     const matchesSearch = invoice.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -39,20 +43,53 @@ const InvoiceList: React.FC = () => {
     }
   };
 
-  if (isLoading) return <Typography>Loading invoices...</Typography>;
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedInvoices(filteredInvoices);
+    } else {
+      setSelectedInvoices([]);
+    }
+  };
+
+  const handleSelectInvoice = (invoice: Invoice, checked: boolean) => {
+    if (checked) {
+      setSelectedInvoices(prev => [...prev, invoice]);
+    } else {
+      setSelectedInvoices(prev => prev.filter(inv => inv.invoice_id !== invoice.invoice_id));
+    }
+  };
+
+  const isSelected = (invoiceId: string) => {
+    return selectedInvoices.some(inv => inv.invoice_id === invoiceId);
+  };
+
+  if (isLoading) return <LoadingSpinner message="Loading invoices..." variant="skeleton" rows={8} />;
   if (error) return <Typography color="error">Error loading invoices</Typography>;
 
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Invoices</Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate('/invoices/create')}
-        >
-          Create Invoice
-        </Button>
+        <Box>
+          <ExportFunctionality data={filteredInvoices} filename="invoices" />
+          {selectedInvoices.length > 0 && (
+            <Button
+              variant="outlined"
+              startIcon={<Settings />}
+              onClick={() => {}}
+              sx={{ mx: 2 }}
+            >
+              Bulk Actions ({selectedInvoices.length})
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => navigate('/invoices/create')}
+          >
+            Create Invoice
+          </Button>
+        </Box>
       </Box>
 
       <Box display="flex" gap={2} mb={3}>
@@ -82,6 +119,13 @@ const InvoiceList: React.FC = () => {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell padding="checkbox">
+                <Checkbox
+                  checked={filteredInvoices.length > 0 && selectedInvoices.length === filteredInvoices.length}
+                  indeterminate={selectedInvoices.length > 0 && selectedInvoices.length < filteredInvoices.length}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                />
+              </TableCell>
               <TableCell>Invoice #</TableCell>
               <TableCell>Customer</TableCell>
               <TableCell>Status</TableCell>
@@ -96,6 +140,12 @@ const InvoiceList: React.FC = () => {
           <TableBody>
             {filteredInvoices.map((invoice) => (
               <TableRow key={invoice.invoice_id} hover>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    checked={isSelected(invoice.invoice_id)}
+                    onChange={(e) => handleSelectInvoice(invoice, e.target.checked)}
+                  />
+                </TableCell>
                 <TableCell>{invoice.invoice_number}</TableCell>
                 <TableCell>{invoice.customer_name}</TableCell>
                 <TableCell><StatusBadge status={invoice.status} /></TableCell>
@@ -141,6 +191,12 @@ const InvoiceList: React.FC = () => {
           </Typography>
         </Box>
       )}
+
+      <BulkOperations
+        selectedInvoices={selectedInvoices}
+        onClose={() => setSelectedInvoices([])}
+        onSuccess={() => setSelectedInvoices([])}
+      />
     </Box>
   );
 };

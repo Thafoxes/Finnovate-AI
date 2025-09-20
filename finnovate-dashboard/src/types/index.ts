@@ -34,6 +34,13 @@ export interface Payment {
   payment_date: string;
   payment_method?: string;
   notes?: string;
+  created_at: string;
+}
+
+export interface PaymentHistory {
+  payments: Payment[];
+  total_paid: number;
+  remaining_balance: number;
 }
 
 // Customer Types
@@ -70,6 +77,13 @@ export interface CreateInvoiceForm {
   line_items: Omit<InvoiceLineItem, 'total'>[];
 }
 
+export interface UpdateInvoiceForm {
+  customer_name: string;
+  customer_email: string;
+  due_date: string;
+  line_items: Omit<InvoiceLineItem, 'total'>[];
+}
+
 export interface PaymentForm {
   invoice_id: string;
   amount: number;
@@ -84,4 +98,32 @@ export interface InvoiceFilters {
   date_from?: string;
   date_to?: string;
   search?: string;
+}
+
+// Analytics Types
+export interface CashFlowData {
+  month: string;
+  invoiced: number;
+  collected: number;
+  outstanding: number;
+}
+
+export interface PaymentTrendData {
+  date: string;
+  amount: number;
+  count: number;
+}
+
+export interface CustomerSegmentData {
+  segment: string;
+  count: number;
+  totalAmount: number;
+  collectionRate: number;
+}
+
+export interface AnalyticsSummary {
+  dso: number; // Days Sales Outstanding
+  collectionEffectiveness: number;
+  overdueRate: number;
+  avgPaymentTime: number;
 }

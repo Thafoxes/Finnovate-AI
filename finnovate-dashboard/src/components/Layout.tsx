@@ -1,10 +1,11 @@
 import React from 'react';
 import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { Menu as MenuIcon, Dashboard, Receipt, People, Brightness4, Brightness7 } from '@mui/icons-material';
+import { Menu as MenuIcon, Dashboard, Receipt, People, Warning, Brightness4, Brightness7 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toggleSidebar, toggleTheme } from '../store/slices/uiSlice';
 import { RootState } from '../store';
+import NotificationCenter from './NotificationCenter';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,6 +20,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Dashboard', icon: <Dashboard />, path: '/' },
     { text: 'Invoices', icon: <Receipt />, path: '/invoices' },
     { text: 'Customers', icon: <People />, path: '/customers' },
+    { text: 'Overdue', icon: <Warning />, path: '/overdue' },
   ];
 
   return (
@@ -31,6 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Finnovate AI Dashboard
           </Typography>
+          <NotificationCenter />
           <IconButton color="inherit" onClick={() => dispatch(toggleTheme())}>
             {theme === 'dark' ? <Brightness7 /> : <Brightness4 />}
           </IconButton>
