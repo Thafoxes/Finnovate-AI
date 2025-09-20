@@ -239,6 +239,69 @@ class InvoiceApplicationService:
             'payment_date': datetime.now().isoformat()
         }
         self.table.put_item(Item=payment_item)
+    
+    def update_invoice_status(self, invoice_id: str, new_status: str, reason: str = "") -> Invoice:
+        invoice = self._get_invoice_by_id(invoice_id)
+        if not invoice:
+            raise ValueError(f"Invoice {invoice_id} not found")
+        
+        new_status_enum = InvoiceStatus(new_status)
+        
+        # Simple status transition validation
+        valid_transitions = {
+            InvoiceStatus.DRAFT: [InvoiceStatus.SENT, InvoiceStatus.CANCELLED],
+            InvoiceStatus.SENT: [InvoiceStatus.PAID, InvoiceStatus.OVERDUE, InvoiceStatus.CANCELLED],
+            InvoiceStatus.OVERDUE: [InvoiceStatus.PAID, InvoiceStatus.CANCELLED],
+            InvoiceStatus.PAID: [],
+            InvoiceStatus.CANCELLED: []
+        }
+        
+        if new_status_enum not in valid_transitions.get(invoice.status, []):
+            raise ValueError(f"Invalid status transition from {invoice.status.value} to {new_status}")
+        
+        invoice.status = new_status_enum
+        invoice.version += 1
+        
+        self._save_invoice(invoice)
+        self._save_status_history(invoice_id, invoice.status.value, new_status, reason)
+        
+        return invoice
+    
+    def delete_invoice(self, invoice_id: str) -> bool:
+        invoice = self._get_invoice_by_id(invoice_id)
+        if not invoice:
+            return False
+        
+        if invoice.status not in [InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED]:
+            raise ValueError("Can only delete draft or cancelled invoices")
+        
+        # Delete main invoice and line items
+        self.table.delete_item(Key={'PK': f'INVOICE#{invoice_id}', 'SK': 'METADATA'})
+        
+        # Delete line items
+        response = self.table.query(
+            KeyConditionExpression='PK = :pk AND begins_with(SK, :sk)',
+            ExpressionAttributeValues={
+                ':pk': f'INVOICE#{invoice_id}',
+                ':sk': 'LINEITEM#'
+            }
+        )
+        
+        for item in response.get('Items', []):
+            self.table.delete_item(Key={'PK': item['PK'], 'SK': item['SK']})
+        
+        return True
+    
+    def _save_status_history(self, invoice_id: str, old_status: str, new_status: str, reason: str):
+        history_item = {
+            'PK': f'INVOICE#{invoice_id}',
+            'SK': f'HISTORY#{datetime.now().isoformat()}',
+            'old_status': old_status,
+            'new_status': new_status,
+            'reason': reason,
+            'changed_at': datetime.now().isoformat()
+        }
+        self.table.put_item(Item=history_item)
 
 def lambda_handler(event, context):
     """Fixed Lambda handler with proper routing"""
@@ -301,10 +364,10 @@ def lambda_handler(event, context):
             else:
                 return error_response(400, "Invoice ID is required")
                 
-        elif http_method == 'PUT' and '/invoices/' in path:
+        elif http_method == 'PUT' and ('invoices' in path or 'update' in path):
             return handle_update_invoice(event, invoice_service)
             
-        elif http_method == 'DELETE' and '/invoices/' in path:
+        elif http_method == 'DELETE' and ('invoices' in path or 'delete' in path):
             return handle_delete_invoice(event, invoice_service)
             
         elif http_method == 'POST' and 'payments' in path:
@@ -580,4 +643,79 @@ def handle_process_payment(event, invoice_service):
             'statusCode': 400,
             'headers': {'Content-Type': 'application/json'},
             'body': json.dumps({'error': f'Failed to process payment: {str(e)}'})
+        }
+
+def handle_update_invoice(event, invoice_service):
+    """Handle invoice status updates"""
+    try:
+        body = json.loads(event.get('body', '{}'))
+        invoice_id = body.get('invoice_id')
+        new_status = body.get('status')
+        reason = body.get('reason', '')
+        
+        if not invoice_id or not new_status:
+            return {
+                'statusCode': 400,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({'error': 'invoice_id and status are required'})
+            }
+        
+        invoice = invoice_service.update_invoice_status(invoice_id, new_status, reason)
+        
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({
+                'success': True,
+                'invoice_id': invoice.invoice_id,
+                'old_status': invoice.status.value,
+                'new_status': invoice.status.value,
+                'message': 'Invoice status updated successfully'
+            }, default=str)
+        }
+        
+    except Exception as e:
+        return {
+            'statusCode': 400,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'error': f'Failed to update invoice: {str(e)}'})
+        }
+
+def handle_delete_invoice(event, invoice_service):
+    """Handle invoice deletion"""
+    try:
+        body = json.loads(event.get('body', '{}'))
+        invoice_id = body.get('invoice_id')
+        
+        if not invoice_id:
+            return {
+                'statusCode': 400,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({'error': 'invoice_id is required'})
+            }
+        
+        success = invoice_service.delete_invoice(invoice_id)
+        
+        if success:
+            return {
+                'statusCode': 200,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({
+                    'success': True,
+                    'invoice_id': invoice_id,
+                    'message': 'Invoice deleted successfully'
+                })
+            }
+        else:
+            return {
+                'statusCode': 404,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({'error': 'Invoice not found'})
+            }
+        
+    except Exception as e:
+        return {
+            'statusCode': 400,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'error': f'Failed to delete invoice: {str(e)}'})
         }
