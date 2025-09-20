@@ -6,3 +6,5 @@ aws_deployment_guide.md
 *.zip
 *.pyc
 checklist.md
+finnovate-dashboard/.env
+*.env
