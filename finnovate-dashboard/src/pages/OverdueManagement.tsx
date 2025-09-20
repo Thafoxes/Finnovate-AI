@@ -15,9 +15,7 @@ const OverdueManagement: React.FC = () => {
   const [isRunningCheck, setIsRunningCheck] = useState(false);
 
   const overdueInvoices = invoices.filter(invoice => {
-    const now = new Date();
-    const dueDate = new Date(invoice.due_date);
-    return dueDate < now && invoice.remaining_balance > 0;
+    return invoice.status === 'OVERDUE';
   });
 
   const getDaysPastDue = (dueDate: string) => {
@@ -45,7 +43,7 @@ const OverdueManagement: React.FC = () => {
     }
   };
 
-  const totalOverdueAmount = overdueInvoices.reduce((sum, inv) => sum + inv.remaining_balance, 0);
+  const totalOverdueAmount = overdueInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
 
   return (
     <Box>
@@ -111,7 +109,7 @@ const OverdueManagement: React.FC = () => {
                     />
                   </TableCell>
                   <TableCell align="right">
-                    <AmountDisplay amount={invoice.remaining_balance} />
+                    <AmountDisplay amount={invoice.total_amount || 0} />
                   </TableCell>
                   <TableCell align="center">
                     <IconButton onClick={() => navigate(`/invoices/${invoice.invoice_id}`)}>
