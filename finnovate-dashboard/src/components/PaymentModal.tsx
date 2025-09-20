@@ -27,6 +27,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose, invoice }) =
   const [notes, setNotes] = useState('');
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastPayment, setLastPayment] = useState<Payment | null>(null);
+  const [mounted, setMounted] = useState(false);
+  
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  if (!mounted) {
+    return null;
+  }
 
   const handleSubmit = async () => {
     const paymentAmount = parseFloat(amount);

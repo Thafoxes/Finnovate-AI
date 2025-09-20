@@ -5,7 +5,13 @@ import { CreateInvoiceForm, UpdateInvoiceForm, PaymentForm } from '../types';
 export const useInvoices = () => {
   return useQuery({
     queryKey: ['invoices'],
-    queryFn: apiService.getInvoices,
+    queryFn: () => apiService.getInvoices(),
+    staleTime: 60 * 60 * 1000, // 1 hour (as per requirement)
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: 60 * 60 * 1000, // Auto-refresh every hour
+    retry: 2,
   });
 };
 

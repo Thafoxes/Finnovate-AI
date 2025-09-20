@@ -9,8 +9,23 @@ import { useCustomers } from '../hooks/useCustomers';
 
 const NotificationCenter: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [mounted, setMounted] = useState(false);
   const { data: invoices = [] } = useInvoices();
   const { data: customers = [] } = useCustomers();
+  
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  if (!mounted) {
+    return (
+      <IconButton color="inherit">
+        <Badge badgeContent={0} color="error">
+          <Notifications />
+        </Badge>
+      </IconButton>
+    );
+  }
 
   const generateNotifications = () => {
     const notifications = [];
@@ -160,9 +175,9 @@ const NotificationCenter: React.FC = () => {
                     <ListItemText
                       primary={
                         <Box display="flex" justifyContent="space-between" alignItems="center">
-                          <Typography variant="subtitle2">
+                          <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>
                             {notification.title}
-                          </Typography>
+                          </span>
                           <Chip 
                             label={notification.action} 
                             size="small" 
@@ -173,12 +188,12 @@ const NotificationCenter: React.FC = () => {
                       }
                       secondary={
                         <Box>
-                          <Typography variant="body2" color="textSecondary">
+                          <div style={{ fontSize: '0.875rem', color: 'rgba(0, 0, 0, 0.6)' }}>
                             {notification.message}
-                          </Typography>
-                          <Typography variant="caption" color="textSecondary">
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'rgba(0, 0, 0, 0.6)' }}>
                             {notification.time}
-                          </Typography>
+                          </div>
                         </Box>
                       }
                     />

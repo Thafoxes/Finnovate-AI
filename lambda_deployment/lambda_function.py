@@ -645,6 +645,18 @@ def lambda_handler(event, context):
         # Initialize customer service
         customer_service = CustomerApplicationService(table)
         
+        # Handle OPTIONS requests for CORS preflight
+        if http_method == 'OPTIONS':
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id',
+                    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+                },
+                'body': ''
+            }
+        
         # Route based on method and path (handle empty path)
         if http_method == 'GET' and '/customers' in path:
             # Handle customer endpoints
@@ -658,6 +670,8 @@ def lambda_handler(event, context):
                     return handle_get_customer_by_id(customer_id, customer_service)
             else:
                 return handle_get_all_customers(customer_service, query_params)
+        elif http_method == 'POST' and ('test-data' in path or 'test_data' in path):
+            return handle_generate_test_data(table)
         elif http_method == 'POST' and ('overdue' in path or 'overdue-check' in path):
             return handle_overdue_check(invoice_service)
         elif http_method == 'POST' and 'payments' in path:
@@ -704,7 +718,16 @@ def lambda_handler(event, context):
             
     except Exception as e:
         print(f"Error: {str(e)}")
-        return error_response(500, f"Internal server error: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id',
+                'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+            },
+            'body': json.dumps({'error': f'Internal server error: {str(e)}'})
+        }
 
 def handle_get_specific_invoice(invoice_id, invoice_service):
     """Handle getting a specific invoice"""
@@ -793,7 +816,12 @@ def error_response(status_code, message):
     """Helper function for error responses"""
     return {
         'statusCode': status_code,
-        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id',
+            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+        },
         'body': json.dumps({'error': message})
     }
 
@@ -1164,3 +1192,86 @@ def handle_get_customer_statistics(customer_service):
         
     except Exception as e:
         return error_response(400, f"Failed to get customer statistics: {str(e)}")
+
+def handle_generate_test_data(table):
+    """Generate test data for development"""
+    try:
+        customers = [
+            {"id": "CUST001", "name": "Acme Corporation", "email": "billing@acme.com"},
+            {"id": "CUST002", "name": "TechStart Inc", "email": "finance@techstart.com"},
+            {"id": "CUST003", "name": "Global Solutions", "email": "accounts@globalsol.com"}
+        ]
+        
+        invoices_created = 0
+        statuses = ['DRAFT', 'SENT', 'PAID', 'OVERDUE']
+        
+        for i in range(12):
+            customer = customers[i % len(customers)]
+            invoice_id = str(uuid.uuid4())
+            invoice_number = f"INV-2024-{str(i+1).zfill(3)}"
+            
+            amounts = [1500, 2500, 3200, 4800]
+            total_amount = amounts[i % len(amounts)]
+            status = statuses[i % len(statuses)]
+            
+            if status == 'PAID':
+                paid_amount = Decimal(str(total_amount))
+                remaining_balance = Decimal('0')
+            elif status == 'OVERDUE':
+                paid_amount = Decimal(str(total_amount)) * Decimal('0.3')
+                remaining_balance = Decimal(str(total_amount)) - paid_amount
+            else:
+                paid_amount = Decimal('0')
+                remaining_balance = Decimal(str(total_amount))
+            
+            issue_date = datetime.now() - timedelta(days=30-i)
+            due_date = issue_date + timedelta(days=30)
+            
+            invoice_item = {
+                'PK': f'INVOICE#{invoice_id}',
+                'SK': 'METADATA',
+                'invoice_id': invoice_id,
+                'invoice_number': invoice_number,
+                'customer_id': customer['id'],
+                'customer_name': customer['name'],
+                'customer_email': customer['email'],
+                'issue_date': issue_date.isoformat(),
+                'due_date': due_date.isoformat(),
+                'status': status,
+                'total_amount': Decimal(str(total_amount)),
+                'paid_amount': paid_amount,
+                'remaining_balance': remaining_balance,
+                'currency': 'USD',
+                'version': 1,
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
+            }
+            
+            table.put_item(Item=invoice_item)
+            
+            # Add line item
+            line_item = {
+                'PK': f'INVOICE#{invoice_id}',
+                'SK': 'LINEITEM#001',
+                'description': f'Professional Services - Project {i+1}',
+                'quantity': Decimal('1'),
+                'unit_price': Decimal(str(total_amount)),
+                'currency': 'USD',
+                'line_total': Decimal(str(total_amount))
+            }
+            
+            table.put_item(Item=line_item)
+            invoices_created += 1
+        
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({
+                'success': True,
+                'message': f'Generated {invoices_created} test invoices',
+                'invoices_created': invoices_created
+            })
+        }
+        
+    except Exception as e:
+        return error_response(500, f"Failed to generate test data: {str(e)}")

@@ -51,7 +51,30 @@ export interface Customer {
   total_invoices: number;
   total_amount: number;
   paid_amount: number;
-  outstanding_amount: number;
+  overdue_amount: number;
+  outstanding_amount: number; // Calculated from overdue_amount
+  draft_count: number;
+  sent_count: number;
+  paid_count: number;
+  overdue_count: number;
+  last_invoice_date: string | null;
+  risk_score: number;
+  payment_ratio?: number;
+  average_invoice_amount?: number;
+  invoices?: Invoice[]; // For detailed customer view
+}
+
+export interface CustomerStatistics {
+  total_customers: number;
+  high_risk_customers: number;
+  average_risk_score: number;
+  total_customer_value: number;
+  top_customers: {
+    customer_id: string;
+    customer_name: string;
+    total_amount: number;
+    risk_score: number;
+  }[];
 }
 
 // API Response Types

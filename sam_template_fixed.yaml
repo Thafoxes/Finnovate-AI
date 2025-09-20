@@ -10,6 +10,11 @@ Globals:
       Variables:
         DYNAMODB_TABLE: !Ref InvoiceManagementTable
         EVENT_BUS_NAME: !Ref InvoiceManagementEventBus
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id'"
+      AllowOrigin: "'*'"
 
 Resources:
   # DynamoDB Table
@@ -72,110 +77,62 @@ Resources:
           Properties:
             Path: /invoices
             Method: post
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              AllowOrigin: "'*'"
         GetInvoices:
           Type: Api
           Properties:
             Path: /invoices
             Method: get
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              AllowOrigin: "'*'"
         GetInvoiceById:
           Type: Api
           Properties:
             Path: /invoices/{invoice_id}
             Method: get
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              AllowOrigin: "'*'"
         UpdateInvoice:
           Type: Api
           Properties:
             Path: /invoices
             Method: put
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              AllowOrigin: "'*'"
         DeleteInvoice:
           Type: Api
           Properties:
             Path: /invoices
             Method: delete
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              AllowOrigin: "'*'"
         ProcessPayment:
           Type: Api
           Properties:
             Path: /payments
             Method: post
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              AllowOrigin: "'*'"
         OverdueCheck:
           Type: Api
           Properties:
             Path: /overdue-check
             Method: post
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              AllowOrigin: "'*'"
+        GenerateTestData:
+          Type: Api
+          Properties:
+            Path: /test-data
+            Method: post
         # Customer endpoints
         GetCustomers:
           Type: Api
           Properties:
             Path: /customers
             Method: get
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              AllowOrigin: "'*'"
         GetCustomerById:
           Type: Api
           Properties:
             Path: /customers/{customer_id}
             Method: get
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              AllowOrigin: "'*'"
         GetCustomerInvoices:
           Type: Api
           Properties:
             Path: /customers/{customer_id}/invoices
             Method: get
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              AllowOrigin: "'*'"
         GetCustomerStatistics:
           Type: Api
           Properties:
             Path: /customers/statistics
             Method: get
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id'"
-              AllowOrigin: "'*'"
-        GenerateTestData:
-          Type: Api
-          Properties:
-            Path: /test-data
-            Method: post
-            Cors:
-              AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id'"
-              AllowOrigin: "'*'"
 
 Outputs:
   InvoiceManagementApi:

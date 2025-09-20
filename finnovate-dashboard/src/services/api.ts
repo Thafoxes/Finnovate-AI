@@ -45,16 +45,25 @@ class ApiService {
 
   // Invoice operations
   async getInvoices(): Promise<Invoice[]> {
-    const response = await this.request<any>('/invoices');
-    // Handle different response formats
-    if (response.data && Array.isArray(response.data)) {
-      return response.data;
+    try {
+      console.log('API_BASE_URL:', API_BASE_URL);
+      const response = await this.request<any>('/invoices');
+      // Handle different response formats
+      if (response.success && response.invoices) {
+        return response.invoices;
+      }
+      if (response.data && Array.isArray(response.data)) {
+        return response.data;
+      }
+      if (Array.isArray(response)) {
+        return response;
+      }
+      console.error('Unexpected response format:', response);
+      return [];
+    } catch (error) {
+      console.error('Error in getInvoices:', error);
+      return [];
     }
-    if (Array.isArray(response)) {
-      return response;
-    }
-    console.error('Unexpected response format:', response);
-    return [];
   }
 
   async getInvoice(invoiceId: string): Promise<Invoice> {
@@ -137,53 +146,95 @@ class ApiService {
     };
   }
 
-  // Customer operations
-  async getCustomers(): Promise<Customer[]> {
-    // Generate customers from invoices since /customers endpoint doesn't exist yet
+  // Customer operations - using real API endpoints
+  async getCustomers(searchTerm?: string, riskFilter?: string, sortBy?: string, includeStats?: boolean): Promise<Customer[]> {
     try {
-      const invoices = await this.getInvoices();
-      const customerMap = new Map<string, Customer>();
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (riskFilter) params.append('risk_filter', riskFilter);
+      if (sortBy) params.append('sort_by', sortBy);
+      if (includeStats) params.append('include_stats', 'true');
       
-      invoices.forEach(invoice => {
-        const customerId = invoice.customer_id;
-        if (!customerMap.has(customerId)) {
-          customerMap.set(customerId, {
-            customer_id: customerId,
-            customer_name: invoice.customer_name,
-            customer_email: invoice.customer_email,
-            total_invoices: 0,
-            total_amount: 0,
-            paid_amount: 0,
-            outstanding_amount: 0,
-          });
-        }
-        
-        const customer = customerMap.get(customerId)!;
-        customer.total_invoices++;
-        customer.total_amount += invoice.total_amount;
-        customer.paid_amount += invoice.paid_amount;
-        customer.outstanding_amount += invoice.remaining_balance;
-      });
+      const queryString = params.toString();
+      const endpoint = `/customers${queryString ? `?${queryString}` : ''}`;
       
-      return Array.from(customerMap.values());
+      const response = await this.request<any>(endpoint);
+      
+      // Handle response format and add outstanding_amount for compatibility
+      let customers = [];
+      if (response.success && response.customers) {
+        customers = response.customers;
+      } else if (Array.isArray(response)) {
+        customers = response;
+      } else {
+        console.error('Unexpected customers response format:', response);
+        return [];
+      }
+      
+      // Add outstanding_amount for backward compatibility
+      return customers.map((customer: any) => ({
+        ...customer,
+        outstanding_amount: customer.overdue_amount || 0
+      }));
     } catch (error) {
-      console.error('Error generating customers from invoices:', error);
+      console.error('Error fetching customers from API:', error);
+      // Fallback to empty array instead of crashing
       return [];
     }
   }
 
   async getCustomer(customerId: string): Promise<Customer> {
-    const customers = await this.getCustomers();
-    const customer = customers.find(c => c.customer_id === customerId);
-    if (!customer) {
+    const response = await this.request<any>(`/customers/${customerId}`);
+    
+    // Handle response format and add outstanding_amount
+    let customer;
+    if (response.success && response.customer) {
+      customer = response.customer;
+    } else if (response.customer_id) {
+      customer = response;
+    } else {
       throw new Error('Customer not found');
     }
-    return customer;
+    
+    // Add outstanding_amount for backward compatibility
+    return {
+      ...customer,
+      outstanding_amount: customer.overdue_amount || 0
+    };
   }
 
   async getCustomerInvoices(customerId: string): Promise<Invoice[]> {
-    const invoices = await this.getInvoices();
-    return invoices.filter(invoice => invoice.customer_id === customerId);
+    const response = await this.request<any>(`/customers/${customerId}/invoices`);
+    
+    // Handle response format
+    if (response.success && response.invoices) {
+      return response.invoices;
+    }
+    if (Array.isArray(response)) {
+      return response;
+    }
+    console.error('Unexpected customer invoices response format:', response);
+    return [];
+  }
+
+  async getCustomerStatistics(): Promise<any> {
+    const response = await this.request<any>('/customers/statistics');
+    
+    // Handle response format
+    if (response.success && response.statistics) {
+      return response.statistics;
+    }
+    if (response.total_customers !== undefined) {
+      return response;
+    }
+    console.error('Unexpected customer statistics response format:', response);
+    return {
+      total_customers: 0,
+      high_risk_customers: 0,
+      average_risk_score: 0,
+      total_customer_value: 0,
+      top_customers: []
+    };
   }
 
   // Overdue check

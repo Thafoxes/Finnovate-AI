@@ -7,16 +7,18 @@ import { Visibility, Search } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useCustomers } from '../hooks/useCustomers';
 import AmountDisplay from '../components/AmountDisplay';
+import { TableSkeleton } from '../components/LoadingSkeleton';
+import { Customer } from '../types';
 
 const CustomerList: React.FC = () => {
   const navigate = useNavigate();
   const { data: customers = [], isLoading, error } = useCustomers();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredCustomers = customers.filter(customer =>
+  const filteredCustomers = Array.isArray(customers) ? customers.filter((customer: Customer) =>
     customer.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.customer_email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) : [];
 
   const getRiskLevel = (customer: any) => {
     const outstandingRatio = customer.outstanding_amount / customer.total_amount;
@@ -25,7 +27,24 @@ const CustomerList: React.FC = () => {
     return { level: 'Low', color: 'success' };
   };
 
-  if (isLoading) return <Typography>Loading customers...</Typography>;
+  if (isLoading) {
+    return (
+      <Box>
+        <Typography variant="h4" gutterBottom>Customers</Typography>
+        <Box mb={3}>
+          <TextField
+            placeholder="Search customers..."
+            disabled
+            InputProps={{ startAdornment: <Search /> }}
+            sx={{ minWidth: 300 }}
+          />
+        </Box>
+        <Paper>
+          <TableSkeleton />
+        </Paper>
+      </Box>
+    );
+  }
   if (error) return <Typography color="error">Error loading customers</Typography>;
 
   return (
@@ -59,7 +78,7 @@ const CustomerList: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredCustomers.map((customer) => {
+            {filteredCustomers.map((customer: Customer) => {
               const risk = getRiskLevel(customer);
               return (
                 <TableRow key={customer.customer_id} hover>

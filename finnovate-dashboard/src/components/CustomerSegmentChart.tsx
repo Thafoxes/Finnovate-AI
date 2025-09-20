@@ -2,9 +2,15 @@ import React from 'react';
 import { Box, Typography, Paper } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useCustomers } from '../hooks/useCustomers';
+import { Customer } from '../types';
+import { ChartSkeleton } from './LoadingSkeleton';
 
 const CustomerSegmentChart: React.FC = () => {
-  const { data: customers = [] } = useCustomers();
+  const { data: customers = [], isLoading } = useCustomers();
+  
+  if (isLoading || !customers || !Array.isArray(customers)) {
+    return <ChartSkeleton />;
+  }
 
   const generateSegmentData = () => {
     const segments = {
