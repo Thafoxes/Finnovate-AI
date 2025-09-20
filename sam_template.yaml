@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Invoice Management System
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.9
+    Environment:
+      Variables:
+        DYNAMODB_TABLE: !Ref InvoiceManagementTable
+        EVENT_BUS_NAME: !Ref InvoiceManagementEventBus
+
+Resources:
+  # DynamoDB Table
+  InvoiceManagementTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: InvoiceManagementTable
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      BillingMode: ON_DEMAND
+
+  # EventBridge Custom Bus
+  InvoiceManagementEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: invoice-management-events
+
+  # Lambda Function
+  CreateInvoiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: invoice_app/
+      Handler: app.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InvoiceManagementTable
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref InvoiceManagementEventBus
+      Events:
+        CreateInvoice:
+          Type: Api
+          Properties:
+            Path: /invoices
+            Method: post
+            Cors:
+              AllowMethods: "'POST,OPTIONS'"
+              AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              AllowOrigin: "'*'"
+
+Outputs:
+  InvoiceManagementApi:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  
+  DynamoDBTable:
+    Description: "DynamoDB table name"
+    Value: !Ref InvoiceManagementTable
