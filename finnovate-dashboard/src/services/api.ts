@@ -48,18 +48,26 @@ class ApiService {
     try {
       console.log('API_BASE_URL:', API_BASE_URL);
       const response = await this.request<any>('/invoices');
+      let invoices = [];
+      
       // Handle different response formats
       if (response.success && response.invoices) {
-        return response.invoices;
+        invoices = response.invoices;
+      } else if (response.data && Array.isArray(response.data)) {
+        invoices = response.data;
+      } else if (Array.isArray(response)) {
+        invoices = response;
+      } else {
+        console.error('Unexpected response format:', response);
+        return [];
       }
-      if (response.data && Array.isArray(response.data)) {
-        return response.data;
-      }
-      if (Array.isArray(response)) {
-        return response;
-      }
-      console.error('Unexpected response format:', response);
-      return [];
+      
+      // Add missing fields for frontend compatibility
+      return invoices.map((invoice: any) => ({
+        ...invoice,
+        paid_amount: invoice.status === 'PAID' ? invoice.total_amount : 0,
+        remaining_balance: invoice.status === 'PAID' ? 0 : invoice.total_amount
+      }));
     } catch (error) {
       console.error('Error in getInvoices:', error);
       return [];
@@ -69,6 +77,21 @@ class ApiService {
   async getInvoice(invoiceId: string): Promise<Invoice> {
     const response = await this.request<any>(`/invoices?invoice_id=${invoiceId}`);
     // Handle different response formats
+    if (response.success && response.invoice) {
+      const invoice = response.invoice;
+      // Map line_total to total for frontend compatibility
+      if (invoice.line_items) {
+        invoice.line_items = invoice.line_items.map((item: any) => ({
+          ...item,
+          total: item.line_total || item.total
+        }));
+      }
+      // Add missing fields for compatibility
+      invoice.subtotal = invoice.total_amount;
+      invoice.paid_amount = invoice.paid_amount || 0;
+      invoice.remaining_balance = invoice.total_amount - (invoice.paid_amount || 0);
+      return invoice;
+    }
     if (response.data) {
       return response.data;
     }
@@ -113,8 +136,9 @@ class ApiService {
   }
 
   async deleteInvoice(invoiceId: string): Promise<void> {
-    await this.request(`/invoices/${invoiceId}`, {
+    await this.request('/invoices', {
       method: 'DELETE',
+      body: JSON.stringify({ invoice_id: invoiceId }),
     });
   }
 

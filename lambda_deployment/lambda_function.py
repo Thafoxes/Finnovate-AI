@@ -75,6 +75,80 @@ class InvoiceApplicationService:
     def __init__(self, dynamodb_table):
         self.table = dynamodb_table
         self.number_generator = InvoiceNumberGenerator()
+    
+    def _get_invoice_by_id(self, invoice_id: str) -> Optional[Invoice]:
+        try:
+            print(f"Looking up invoice in DynamoDB with PK: INVOICE#{invoice_id}")
+            response = self.table.get_item(
+                Key={'PK': f'INVOICE#{invoice_id}', 'SK': 'METADATA'}
+            )
+            
+            print(f"DynamoDB response: {response}")
+            
+            if 'Item' not in response:
+                print(f"No item found for invoice {invoice_id}")
+                return None
+            
+            item = response['Item']
+            
+            line_items_response = self.table.query(
+                KeyConditionExpression='PK = :pk AND begins_with(SK, :sk)',
+                ExpressionAttributeValues={
+                    ':pk': f'INVOICE#{invoice_id}',
+                    ':sk': 'LINEITEM#'
+                }
+            )
+            
+            line_items = []
+            for line_item_data in line_items_response.get('Items', []):
+                line_item = InvoiceLineItem(
+                    description=line_item_data['description'],
+                    quantity=line_item_data['quantity'],
+                    unit_price=Money(line_item_data['unit_price'], line_item_data['currency'])
+                )
+                line_items.append(line_item)
+            
+            return Invoice(
+                invoice_id=item['invoice_id'],
+                invoice_number=item['invoice_number'],
+                customer_id=item['customer_id'],
+                customer_name=item['customer_name'],
+                customer_email=item['customer_email'],
+                issue_date=datetime.fromisoformat(item['issue_date']),
+                due_date=datetime.fromisoformat(item['due_date']),
+                status=InvoiceStatus(item['status']),
+                line_items=line_items,
+                version=item.get('version', 1)
+            )
+            
+        except Exception as e:
+            print(f"Error getting invoice {invoice_id}: {str(e)}")
+            return None
+    
+    def delete_invoice(self, invoice_id: str) -> bool:
+        invoice = self._get_invoice_by_id(invoice_id)
+        if not invoice:
+            return False
+        
+        if invoice.status not in [InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED]:
+            raise ValueError("Can only delete draft or cancelled invoices")
+        
+        # Delete main invoice and line items
+        self.table.delete_item(Key={'PK': f'INVOICE#{invoice_id}', 'SK': 'METADATA'})
+        
+        # Delete line items
+        response = self.table.query(
+            KeyConditionExpression='PK = :pk AND begins_with(SK, :sk)',
+            ExpressionAttributeValues={
+                ':pk': f'INVOICE#{invoice_id}',
+                ':sk': 'LINEITEM#'
+            }
+        )
+        
+        for item in response.get('Items', []):
+            self.table.delete_item(Key={'PK': item['PK'], 'SK': item['SK']})
+        
+        return True
 
 # Customer Service
 class CustomerApplicationService:
@@ -574,31 +648,6 @@ class CustomerApplicationService:
         self._save_status_history(invoice_id, invoice.status.value, new_status, reason)
         
         return invoice
-    
-    def delete_invoice(self, invoice_id: str) -> bool:
-        invoice = self._get_invoice_by_id(invoice_id)
-        if not invoice:
-            return False
-        
-        if invoice.status not in [InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED]:
-            raise ValueError("Can only delete draft or cancelled invoices")
-        
-        # Delete main invoice and line items
-        self.table.delete_item(Key={'PK': f'INVOICE#{invoice_id}', 'SK': 'METADATA'})
-        
-        # Delete line items
-        response = self.table.query(
-            KeyConditionExpression='PK = :pk AND begins_with(SK, :sk)',
-            ExpressionAttributeValues={
-                ':pk': f'INVOICE#{invoice_id}',
-                ':sk': 'LINEITEM#'
-            }
-        )
-        
-        for item in response.get('Items', []):
-            self.table.delete_item(Key={'PK': item['PK'], 'SK': item['SK']})
-        
-        return True
     
     def _save_status_history(self, invoice_id: str, old_status: str, new_status: str, reason: str):
         history_item = {

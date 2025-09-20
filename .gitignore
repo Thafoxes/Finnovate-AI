@@ -8,3 +8,9 @@ aws_deployment_guide.md
 checklist.md
 finnovate-dashboard/.env
 *.env
+authentication_plan.md
+finnovate-dashboard/.env.staging
+finnovate-dashboard/.env.development
+*.yaml
+*.production
+finnovate-dashboard/.env.production
