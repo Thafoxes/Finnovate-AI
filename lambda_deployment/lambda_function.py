@@ -77,9 +77,25 @@ class InvoiceApplicationService:
         self.number_generator = InvoiceNumberGenerator()
     
     def create_invoice(self, command_data: dict) -> Invoice:
+        # Validate required fields
+        if not command_data.get('customer_name'):
+            raise ValueError("customer_name is required")
+        
+        line_items_data = command_data.get('line_items', [])
+        if not line_items_data:
+            raise ValueError("At least one line item is required")
+        
         # Create line items
         line_items = []
-        for item_data in command_data.get('line_items', []):
+        for item_data in line_items_data:
+            # Validate line item fields
+            if not item_data.get('description'):
+                raise ValueError("Line item description is required")
+            if not item_data.get('quantity') or item_data.get('quantity') <= 0:
+                raise ValueError("Line item quantity must be greater than 0")
+            if not item_data.get('unit_price') or item_data.get('unit_price') <= 0:
+                raise ValueError("Line item unit_price must be greater than 0")
+            
             line_item = InvoiceLineItem(
                 description=item_data['description'],
                 quantity=Decimal(str(item_data['quantity'])),
@@ -514,7 +530,23 @@ def create_invoice_fixed(self, command_data: dict) -> Invoice:
 def handle_create_invoice(event, invoice_service):
     """Handle invoice creation with DDD"""
     try:
-        body = json.loads(event.get('body', '{}'))
+        # Parse JSON body
+        body_str = event.get('body', '{}')
+        if not body_str or body_str.strip() == '':
+            return {
+                'statusCode': 400,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({'error': 'Request body is required'})
+            }
+        
+        try:
+            body = json.loads(body_str)
+        except json.JSONDecodeError as e:
+            return {
+                'statusCode': 400,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({'error': f'Invalid JSON: {str(e)}'})
+            }
         
         # Use application service
         invoice = invoice_service.create_invoice(body)
@@ -538,12 +570,19 @@ def handle_create_invoice(event, invoice_service):
 
         }
         
-    except Exception as e:
-        print(f"Create invoice error: {str(e)}")
+    except ValueError as e:
+        print(f"Validation error: {str(e)}")
         return {
             'statusCode': 400,
             'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'error': f'Failed to create invoice: {str(e)}'})
+            'body': json.dumps({'error': f'Validation error: {str(e)}'})
+        }
+    except Exception as e:
+        print(f"Create invoice error: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'error': f'Internal server error: {str(e)}'})
         }
 
 def handle_get_invoices(table):
