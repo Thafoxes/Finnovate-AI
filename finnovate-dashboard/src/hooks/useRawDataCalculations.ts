@@ -10,9 +10,20 @@ export const useRawDataCalculations = (invoices: Invoice[]) => {
       sent: invoices.filter(inv => inv.status === 'SENT').length,
       paid: invoices.filter(inv => inv.status === 'PAID').length,
       overdue: invoices.filter(inv => inv.status === 'OVERDUE').length,
-      totalAmount: invoices.reduce((sum, inv) => sum + inv.total_amount, 0),
-      paidAmount: invoices.reduce((sum, inv) => sum + inv.paid_amount, 0),
-      outstandingAmount: invoices.reduce((sum, inv) => sum + inv.remaining_balance, 0),
+      totalAmount: invoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0),
+      paidAmount: invoices.reduce((sum, inv) => {
+        // Calculate paid amount based on status since paid_amount field might not exist
+        if (inv.status === 'PAID') {
+          return sum + (inv.total_amount || 0);
+        }
+        return sum + (inv.paid_amount || 0);
+      }, 0),
+      outstandingAmount: invoices.reduce((sum, inv) => {
+        if (inv.status === 'PAID') {
+          return sum;
+        }
+        return sum + (inv.remaining_balance || inv.total_amount || 0);
+      }, 0),
     };
 
     // Cash flow by month
@@ -27,8 +38,8 @@ export const useRawDataCalculations = (invoices: Invoice[]) => {
         const month = date.toISOString().slice(0, 7);
         if (!acc[month]) acc[month] = { invoiced: 0, paid: 0, outstanding: 0 };
         acc[month].invoiced += invoice.total_amount || 0;
-        acc[month].paid += invoice.paid_amount || 0;
-        acc[month].outstanding += invoice.remaining_balance || 0;
+        acc[month].paid += invoice.status === 'PAID' ? (invoice.total_amount || 0) : (invoice.paid_amount || 0);
+        acc[month].outstanding += invoice.status === 'PAID' ? 0 : (invoice.remaining_balance || invoice.total_amount || 0);
       } catch (error) {
         console.warn('Invalid date in invoice:', dateStr);
       }
@@ -48,8 +59,8 @@ export const useRawDataCalculations = (invoices: Invoice[]) => {
           overdueCount: 0
         };
       }
-      acc[id].totalAmount += invoice.total_amount;
-      acc[id].paidAmount += invoice.paid_amount;
+      acc[id].totalAmount += invoice.total_amount || 0;
+      acc[id].paidAmount += invoice.status === 'PAID' ? (invoice.total_amount || 0) : (invoice.paid_amount || 0);
       acc[id].invoiceCount += 1;
       if (invoice.status === 'OVERDUE') acc[id].overdueCount += 1;
       return acc;
