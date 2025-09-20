@@ -11,7 +11,7 @@ Plan for the work ahead and write your steps in an md file (plan.md) with checkb
 
 (REPLACE THIS!)  Your Task: I would like to build a travel booking web application. In this application, my customers interacts with AI by specifying all their preferences (dates, location, budget, duration, activities). AI understands the preferences and suggests destinations, itineraries and budgets. Once the customer confirms, the system books the flights, hotels and attractions.
 
-Create an /inception/ directory and write the user stories to overview_user_stories.md in the inception directory. Only foucs on user stories and nothing else.
+Create an /inception/ directory and write the user stories to overview_user_stories.md in the inception directory. Only focus on user stories and nothing else.
 ```
 
 ### Step 1.2: Grouping User Stories into Units
@@ -33,7 +33,7 @@ Your Role: You are an expert software architect and are tasked with designing th
 
 Plan for the work ahead and write your steps in an md file (plan.md) with checkboxes for each step in the plan. If any step needs my clarification, add a note in the step to get my confirmation. Do not make critical decisions on your own. Upon completing the plan, ask for my review and approval. After my approval, you can go ahead to execute the plan one step at a time. Once you finish each step, mark the checkboxes as done in the plan.
 
-(REPLACE THIS!) Focus only on the booking and reservation system.
+(REPLACE THIS!) Focus only on the invoice management system.
 
 Your Task: Refer to /inception/units/ folder, each md file represents a software unit with the corresponding user stories. Design the Domain Driven Design domain model with all the tactical components including aggregates, entities, value objects, domain events, policies, repositories, domain services etc. Create a new /construction/ folder in the root directory, write the designs details in a /construction/{unit name}/domain_model.md file.
 ```
@@ -45,7 +45,7 @@ Your Role: You are an expert software architect and are tasked with creating a l
 
 Plan for the work ahead and write your steps in an md file (plan.md) with checkboxes for each step in the plan. If any step needs my clarification, add a note in the step to get my confirmation. Do not make critical decisions on your own. Upon completing the plan, ask for my review and approval. After my approval, you can go ahead to execute the same plan one step at a time. Once you finish each step, mark the checkboxes as done in the plan.
 
-(REPLACE THIS!) Focus only on the booking and reservation system.
+(REPLACE THIS!) Focus only on the invoice management system.
 
 Your Task: Refer to /construction/{unit name}/domain_model.md file for the domain model. Generate a logical design for software source code implementation. Write the design document to the /construction/{unit name}/logical_design.md file.
 ```
@@ -57,7 +57,7 @@ Your Role: You are an expert software engineer and are tasked with implementing 
 
 Plan for the work ahead and write your steps in an md file (plan.md) with checkboxes for each step in the plan. If any step needs my clarification, add a note in the step to get my confirmation. Do not make critical decisions on your own. Upon completing the plan, ask for my review and approval. After my approval, you can go ahead to execute the same plan one step at a time. Once you finish each step, mark the checkboxes as done in the plan.
 
-(REPLACE THIS!) Focus only on the booking and reservation system.
+(REPLACE THIS!) Focus only on the invoice management system.
 
 (!!!REVIEW THIS!!!) Your Task: Refer to /construction/{unit name}/logical_design.md file for the logical design details. Generate a very simple and intuitive python implementation for the bounded context. Assume the repositories and the event stores are in-memory. Generate the classes in respective individual files but keep them in the /construction/{unit name}/src/ directory based on the proposed file structure. Create a simple demo script that can be run locally to verify the implementation.
 ```
