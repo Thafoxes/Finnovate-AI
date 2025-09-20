@@ -3,7 +3,7 @@
 import json
 import boto3
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from dataclasses import dataclass
 from enum import Enum
@@ -134,6 +134,51 @@ class InvoiceApplicationService:
                 'line_total': item.line_total.amount
             }
             self.table.put_item(Item=line_item)
+    
+    def _get_invoice_by_id(self, invoice_id: str) -> Optional[Invoice]:
+        try:
+            response = self.table.get_item(
+                Key={'PK': f'INVOICE#{invoice_id}', 'SK': 'METADATA'}
+            )
+            
+            if 'Item' not in response:
+                return None
+            
+            item = response['Item']
+            
+            line_items_response = self.table.query(
+                KeyConditionExpression='PK = :pk AND begins_with(SK, :sk)',
+                ExpressionAttributeValues={
+                    ':pk': f'INVOICE#{invoice_id}',
+                    ':sk': 'LINEITEM#'
+                }
+            )
+            
+            line_items = []
+            for line_item_data in line_items_response.get('Items', []):
+                line_item = InvoiceLineItem(
+                    description=line_item_data['description'],
+                    quantity=line_item_data['quantity'],
+                    unit_price=Money(line_item_data['unit_price'], line_item_data['currency'])
+                )
+                line_items.append(line_item)
+            
+            return Invoice(
+                invoice_id=item['invoice_id'],
+                invoice_number=item['invoice_number'],
+                customer_id=item['customer_id'],
+                customer_name=item['customer_name'],
+                customer_email=item['customer_email'],
+                issue_date=datetime.fromisoformat(item['issue_date']),
+                due_date=datetime.fromisoformat(item['due_date']),
+                status=InvoiceStatus(item['status']),
+                line_items=line_items,
+                version=item.get('version', 1)
+            )
+            
+        except Exception as e:
+            print(f"Error getting invoice {invoice_id}: {str(e)}")
+            return None
 
 def lambda_handler(event, context):
     """Fixed Lambda handler with proper routing"""
@@ -152,15 +197,16 @@ def lambda_handler(event, context):
         query_params = event.get('queryStringParameters') or {}
         path_params = event.get('pathParameters') or {}
         
-        print(f"Method: {http_method}, Path: {path}")
+        print(f"Method: {http_method}, Path: '{path}'")
         print(f"Query params: {query_params}")
         print(f"Path params: {path_params}")
+        print(f"Resource: {event.get('resource', 'N/A')}")
         
-        # Route based on method and path
-        if http_method == 'POST' and path == '/invoices':
+        # Route based on method and path (handle empty path)
+        if http_method == 'POST':
             return handle_create_invoice(event, invoice_service)
             
-        elif http_method == 'GET' and path == '/invoices':
+        elif http_method == 'GET':
             # Check if specific invoice requested via query parameter
             invoice_id = query_params.get('invoice_id')
             if invoice_id:
@@ -182,10 +228,10 @@ def lambda_handler(event, context):
         elif http_method == 'DELETE' and '/invoices/' in path:
             return handle_delete_invoice(event, invoice_service)
             
-        elif http_method == 'POST' and path == '/payments':
+        elif http_method == 'POST' and 'payments' in path:
             return handle_process_payment(event, invoice_service)
             
-        elif http_method == 'POST' and path == '/overdue-check':
+        elif http_method == 'POST' and 'overdue' in path:
             return handle_overdue_check(invoice_service)
             
         else:
