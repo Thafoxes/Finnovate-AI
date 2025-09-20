@@ -75,6 +75,298 @@ class InvoiceApplicationService:
     def __init__(self, dynamodb_table):
         self.table = dynamodb_table
         self.number_generator = InvoiceNumberGenerator()
+
+# Customer Service
+class CustomerApplicationService:
+    def __init__(self, dynamodb_table):
+        self.table = dynamodb_table
+    
+    def get_all_customers(self, search_term=None, risk_filter=None, sort_by='customer_name'):
+        """Get all customers with search, filtering, and sorting"""
+        try:
+            # Use GSI if available, otherwise fall back to scan
+            try:
+                response = self.table.query(
+                    IndexName='SK-customer_id-index',
+                    KeyConditionExpression='SK = :sk',
+                    ExpressionAttributeValues={':sk': 'METADATA'}
+                )
+            except:
+                # Fallback to scan if GSI doesn't exist
+                response = self.table.scan(
+                    FilterExpression='SK = :sk',
+                    ExpressionAttributeValues={':sk': 'METADATA'}
+                )
+            
+            customers = {}
+            for item in response.get('Items', []):
+                customer_id = item.get('customer_id', 'unknown')
+                customer_name = item.get('customer_name', 'Unknown')
+                customer_email = item.get('customer_email', 'unknown@example.com')
+                
+                if customer_id not in customers:
+                    customers[customer_id] = {
+                        'customer_id': customer_id,
+                        'customer_name': customer_name,
+                        'customer_email': customer_email,
+                        'total_invoices': 0,
+                        'total_amount': 0,
+                        'paid_amount': 0,
+                        'overdue_amount': 0,
+                        'draft_count': 0,
+                        'sent_count': 0,
+                        'paid_count': 0,
+                        'overdue_count': 0,
+                        'last_invoice_date': None,
+                        'risk_score': 0
+                    }
+                
+                customer = customers[customer_id]
+                customer['total_invoices'] += 1
+                customer['total_amount'] += float(item.get('total_amount', 0))
+                
+                status = item.get('status', 'DRAFT')
+                if status == 'PAID':
+                    customer['paid_count'] += 1
+                    customer['paid_amount'] += float(item.get('total_amount', 0))
+                elif status == 'OVERDUE':
+                    customer['overdue_count'] += 1
+                    customer['overdue_amount'] += float(item.get('total_amount', 0))
+                elif status == 'SENT':
+                    customer['sent_count'] += 1
+                elif status == 'DRAFT':
+                    customer['draft_count'] += 1
+                
+                issue_date = item.get('issue_date')
+                if issue_date and (not customer['last_invoice_date'] or issue_date > customer['last_invoice_date']):
+                    customer['last_invoice_date'] = issue_date
+            
+            # Calculate risk scores and additional metrics
+            customer_list = []
+            for customer in customers.values():
+                customer['risk_score'] = self._calculate_risk_score(customer)
+                customer['payment_ratio'] = customer['paid_count'] / customer['total_invoices'] if customer['total_invoices'] > 0 else 0
+                customer['average_invoice_amount'] = customer['total_amount'] / customer['total_invoices'] if customer['total_invoices'] > 0 else 0
+                customer_list.append(customer)
+            
+            # Apply search filter
+            if search_term:
+                search_term = search_term.lower()
+                customer_list = [c for c in customer_list if 
+                    search_term in c['customer_name'].lower() or 
+                    search_term in c['customer_email'].lower() or 
+                    search_term in c['customer_id'].lower()]
+            
+            # Apply risk filter
+            if risk_filter:
+                if risk_filter == 'low':
+                    customer_list = [c for c in customer_list if c['risk_score'] <= 30]
+                elif risk_filter == 'medium':
+                    customer_list = [c for c in customer_list if 30 < c['risk_score'] <= 70]
+                elif risk_filter == 'high':
+                    customer_list = [c for c in customer_list if c['risk_score'] > 70]
+            
+            # Sort customers
+            if sort_by == 'risk_score':
+                customer_list.sort(key=lambda x: x['risk_score'], reverse=True)
+            elif sort_by == 'total_amount':
+                customer_list.sort(key=lambda x: x['total_amount'], reverse=True)
+            elif sort_by == 'last_invoice_date':
+                customer_list.sort(key=lambda x: x['last_invoice_date'] or '', reverse=True)
+            else:  # default to customer_name
+                customer_list.sort(key=lambda x: x['customer_name'])
+            
+            return customer_list
+            
+        except Exception as e:
+            print(f"Error getting customers: {str(e)}")
+            raise e
+    
+    def get_customer_by_id(self, customer_id: str):
+        """Get specific customer with detailed statistics - optimized"""
+        try:
+            # Use GSI if available for better performance
+            try:
+                response = self.table.query(
+                    IndexName='customer_id-SK-index',
+                    KeyConditionExpression='customer_id = :customer_id AND SK = :sk',
+                    ExpressionAttributeValues={
+                        ':customer_id': customer_id,
+                        ':sk': 'METADATA'
+                    }
+                )
+            except:
+                # Fallback to scan
+                response = self.table.scan(
+                    FilterExpression='SK = :sk AND customer_id = :customer_id',
+                    ExpressionAttributeValues={
+                        ':sk': 'METADATA',
+                        ':customer_id': customer_id
+                    }
+                )
+            
+            if not response.get('Items'):
+                return None
+            
+            customer_data = {
+                'customer_id': customer_id,
+                'customer_name': '',
+                'customer_email': '',
+                'total_invoices': 0,
+                'total_amount': 0,
+                'paid_amount': 0,
+                'overdue_amount': 0,
+                'draft_count': 0,
+                'sent_count': 0,
+                'paid_count': 0,
+                'overdue_count': 0,
+                'invoices': [],
+                'last_invoice_date': None,
+                'risk_score': 0
+            }
+            
+            for item in response.get('Items', []):
+                if not customer_data['customer_name']:
+                    customer_data['customer_name'] = item.get('customer_name', 'Unknown')
+                    customer_data['customer_email'] = item.get('customer_email', 'unknown@example.com')
+                
+                customer_data['total_invoices'] += 1
+                customer_data['total_amount'] += float(item.get('total_amount', 0))
+                
+                status = item.get('status', 'DRAFT')
+                if status == 'PAID':
+                    customer_data['paid_count'] += 1
+                    customer_data['paid_amount'] += float(item.get('total_amount', 0))
+                elif status == 'OVERDUE':
+                    customer_data['overdue_count'] += 1
+                    customer_data['overdue_amount'] += float(item.get('total_amount', 0))
+                elif status == 'SENT':
+                    customer_data['sent_count'] += 1
+                elif status == 'DRAFT':
+                    customer_data['draft_count'] += 1
+                
+                customer_data['invoices'].append({
+                    'invoice_id': item.get('invoice_id'),
+                    'invoice_number': item.get('invoice_number'),
+                    'total_amount': float(item.get('total_amount', 0)),
+                    'status': status,
+                    'issue_date': item.get('issue_date'),
+                    'due_date': item.get('due_date')
+                })
+                
+                issue_date = item.get('issue_date')
+                if issue_date and (not customer_data['last_invoice_date'] or issue_date > customer_data['last_invoice_date']):
+                    customer_data['last_invoice_date'] = issue_date
+            
+            customer_data['risk_score'] = self._calculate_risk_score(customer_data)
+            customer_data['payment_ratio'] = customer_data['paid_count'] / customer_data['total_invoices'] if customer_data['total_invoices'] > 0 else 0
+            customer_data['average_invoice_amount'] = customer_data['total_amount'] / customer_data['total_invoices'] if customer_data['total_invoices'] > 0 else 0
+            return customer_data
+            
+        except Exception as e:
+            print(f"Error getting customer {customer_id}: {str(e)}")
+            raise e
+    
+    def get_customer_invoices(self, customer_id: str):
+        """Get all invoices for a specific customer - optimized"""
+        try:
+            # Use GSI for better performance
+            try:
+                response = self.table.query(
+                    IndexName='customer_id-SK-index',
+                    KeyConditionExpression='customer_id = :customer_id AND SK = :sk',
+                    ExpressionAttributeValues={
+                        ':customer_id': customer_id,
+                        ':sk': 'METADATA'
+                    }
+                )
+            except:
+                # Fallback to scan
+                response = self.table.scan(
+                    FilterExpression='SK = :sk AND customer_id = :customer_id',
+                    ExpressionAttributeValues={
+                        ':sk': 'METADATA',
+                        ':customer_id': customer_id
+                    }
+                )
+            
+            invoices = []
+            for item in response.get('Items', []):
+                invoices.append({
+                    'invoice_id': item.get('invoice_id'),
+                    'invoice_number': item.get('invoice_number'),
+                    'total_amount': float(item.get('total_amount', 0)),
+                    'status': item.get('status'),
+                    'issue_date': item.get('issue_date'),
+                    'due_date': item.get('due_date'),
+                    'is_overdue': datetime.fromisoformat(item.get('due_date')) < datetime.now() and item.get('status') not in ['PAID', 'CANCELLED']
+                })
+            
+            return sorted(invoices, key=lambda x: x['issue_date'], reverse=True)
+            
+        except Exception as e:
+            print(f"Error getting invoices for customer {customer_id}: {str(e)}")
+            raise e
+    
+    def _calculate_risk_score(self, customer_data):
+        """Enhanced risk score calculation with multiple factors"""
+        if customer_data['total_invoices'] == 0:
+            return 0
+        
+        # Base risk factors
+        overdue_ratio = customer_data['overdue_count'] / customer_data['total_invoices']
+        paid_ratio = customer_data['paid_count'] / customer_data['total_invoices']
+        
+        # Additional risk factors
+        draft_ratio = customer_data['draft_count'] / customer_data['total_invoices']
+        
+        # Calculate risk score (0-100, higher = riskier)
+        risk_score = (
+            (overdue_ratio * 50) +          # Overdue invoices (50% weight)
+            ((1 - paid_ratio) * 30) +       # Unpaid invoices (30% weight)
+            (draft_ratio * 20)              # Draft invoices (20% weight)
+        )
+        
+        return min(100, max(0, int(risk_score)))
+    
+    def get_customer_statistics(self):
+        """Get overall customer statistics for dashboard"""
+        try:
+            customers = self.get_all_customers()
+            
+            if not customers:
+                return {
+                    'total_customers': 0,
+                    'high_risk_customers': 0,
+                    'average_risk_score': 0,
+                    'total_customer_value': 0,
+                    'top_customers': []
+                }
+            
+            total_customers = len(customers)
+            high_risk_customers = len([c for c in customers if c['risk_score'] > 70])
+            average_risk_score = sum(c['risk_score'] for c in customers) / total_customers
+            total_customer_value = sum(c['total_amount'] for c in customers)
+            
+            # Top 5 customers by total amount
+            top_customers = sorted(customers, key=lambda x: x['total_amount'], reverse=True)[:5]
+            
+            return {
+                'total_customers': total_customers,
+                'high_risk_customers': high_risk_customers,
+                'average_risk_score': round(average_risk_score, 1),
+                'total_customer_value': total_customer_value,
+                'top_customers': [{
+                    'customer_id': c['customer_id'],
+                    'customer_name': c['customer_name'],
+                    'total_amount': c['total_amount'],
+                    'risk_score': c['risk_score']
+                } for c in top_customers]
+            }
+            
+        except Exception as e:
+            print(f"Error getting customer statistics: {str(e)}")
+            raise e
     
     def create_invoice(self, command_data: dict) -> Invoice:
         # Validate required fields
@@ -350,8 +642,23 @@ def lambda_handler(event, context):
         else:
             print("query_params is None or empty")
         
+        # Initialize customer service
+        customer_service = CustomerApplicationService(table)
+        
         # Route based on method and path (handle empty path)
-        if http_method == 'POST' and ('overdue' in path or 'overdue-check' in path):
+        if http_method == 'GET' and '/customers' in path:
+            # Handle customer endpoints
+            if '/statistics' in path:
+                return handle_get_customer_statistics(customer_service)
+            elif path_params and path_params.get('customer_id'):
+                customer_id = path_params.get('customer_id')
+                if '/invoices' in path:
+                    return handle_get_customer_invoices(customer_id, customer_service)
+                else:
+                    return handle_get_customer_by_id(customer_id, customer_service)
+            else:
+                return handle_get_all_customers(customer_service, query_params)
+        elif http_method == 'POST' and ('overdue' in path or 'overdue-check' in path):
             return handle_overdue_check(invoice_service)
         elif http_method == 'POST' and 'payments' in path:
             return handle_process_payment(event, invoice_service)
@@ -758,3 +1065,102 @@ def handle_delete_invoice(event, invoice_service):
             'headers': {'Content-Type': 'application/json'},
             'body': json.dumps({'error': f'Failed to delete invoice: {str(e)}'})
         }
+
+# Customer endpoint handlers
+def handle_get_all_customers(customer_service, query_params=None):
+    """Handle getting all customers with search and filtering"""
+    try:
+        # Extract query parameters
+        search_term = query_params.get('search') if query_params else None
+        risk_filter = query_params.get('risk_filter') if query_params else None
+        sort_by = query_params.get('sort_by', 'customer_name') if query_params else 'customer_name'
+        include_stats = query_params.get('include_stats') == 'true' if query_params else False
+        
+        customers = customer_service.get_all_customers(search_term, risk_filter, sort_by)
+        
+        response_data = {
+            'success': True,
+            'customers': customers,
+            'count': len(customers),
+            'filters_applied': {
+                'search': search_term,
+                'risk_filter': risk_filter,
+                'sort_by': sort_by
+            }
+        }
+        
+        # Include statistics if requested
+        if include_stats:
+            response_data['statistics'] = customer_service.get_customer_statistics()
+        
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps(response_data, default=str)
+        }
+        
+    except Exception as e:
+        return error_response(400, f"Failed to get customers: {str(e)}")
+
+def handle_get_customer_by_id(customer_id, customer_service):
+    """Handle getting a specific customer"""
+    try:
+        customer = customer_service.get_customer_by_id(customer_id)
+        
+        if not customer:
+            return {
+                'statusCode': 404,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({
+                    'error': 'Customer not found',
+                    'customer_id': customer_id
+                })
+            }
+        
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({
+                'success': True,
+                'customer': customer
+            }, default=str)
+        }
+        
+    except Exception as e:
+        return error_response(400, f"Failed to get customer: {str(e)}")
+
+def handle_get_customer_invoices(customer_id, customer_service):
+    """Handle getting customer invoices"""
+    try:
+        invoices = customer_service.get_customer_invoices(customer_id)
+        
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({
+                'success': True,
+                'customer_id': customer_id,
+                'invoices': invoices,
+                'count': len(invoices)
+            }, default=str)
+        }
+        
+    except Exception as e:
+        return error_response(400, f"Failed to get customer invoices: {str(e)}")
+
+def handle_get_customer_statistics(customer_service):
+    """Handle getting customer statistics for dashboard"""
+    try:
+        statistics = customer_service.get_customer_statistics()
+        
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({
+                'success': True,
+                'statistics': statistics
+            }, default=str)
+        }
+        
+    except Exception as e:
+        return error_response(400, f"Failed to get customer statistics: {str(e)}")
