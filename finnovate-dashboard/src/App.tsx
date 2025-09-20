@@ -18,6 +18,7 @@ import EditInvoice from './pages/EditInvoice';
 import CustomerList from './pages/CustomerList';
 import CustomerProfile from './pages/CustomerProfile';
 import OverdueManagement from './pages/OverdueManagement';
+import TestingPage from './pages/TestingPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +60,7 @@ function AppContent() {
               <Route path="/customers" element={<CustomerList />} />
               <Route path="/customers/:id" element={<CustomerProfile />} />
               <Route path="/overdue" element={<OverdueManagement />} />
+            <Route path="/testing" element={<TestingPage />} />
             </Routes>
           </Layout>
         </Router>
