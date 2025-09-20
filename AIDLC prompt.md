@@ -57,7 +57,7 @@ Your Role: You are an expert software engineer and are tasked with implementing 
 
 Plan for the work ahead and write your steps in an md file (plan.md) with checkboxes for each step in the plan. If any step needs my clarification, add a note in the step to get my confirmation. Do not make critical decisions on your own. Upon completing the plan, ask for my review and approval. After my approval, you can go ahead to execute the same plan one step at a time. Once you finish each step, mark the checkboxes as done in the plan.
 
-(REPLACE THIS!) Focus only on the invoice management system.
+(REPLACE THIS!) Focus only on the AI invoice chatbot system.
 
 (!!!REVIEW THIS!!!) Your Task: Refer to /construction/{unit name}/logical_design.md file for the logical design details. Generate a very simple and intuitive python implementation for the bounded context. Assume the repositories and the event stores are in-memory. Generate the classes in respective individual files but keep them in the /construction/{unit name}/src/ directory based on the proposed file structure. Create a simple demo script that can be run locally to verify the implementation.
 ```
