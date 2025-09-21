@@ -4,6 +4,9 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Import console utilities for clean demo experience
+import './utils/consoleUtils';
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );

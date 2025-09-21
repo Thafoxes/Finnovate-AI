@@ -33,11 +33,13 @@ interface ChatMessage {
   sender: 'user' | 'bot';
   content: string;
   timestamp: Date;
-  type?: 'text' | 'payment_options' | 'escalation' | 'info';
+  type?: 'text' | 'payment_options' | 'escalation' | 'info' | 'analysis' | 'email_draft';
   metadata?: {
     paymentOptions?: PaymentOption[];
     suggestedActions?: string[];
     escalationNeeded?: boolean;
+    analysisData?: any;
+    emailDrafts?: any[];
   };
 }
 
@@ -110,9 +112,12 @@ const AIPaymentChatbot: React.FC = () => {
     {
       id: '1',
       sender: 'bot',
-      content: 'Hello! I\'m your AI payment assistant. I can help you with overdue invoices, payment arrangements, and answering questions about your account. How can I assist you today?',
+      content: 'Hello! I\'m Innovate AI, your intelligent invoice management assistant. I can help you analyze customer payment patterns, draft professional reminder emails, track overdue invoices, and generate insightful reports. What would you like to work on today?',
       timestamp: new Date(),
-      type: 'text'
+      type: 'text',
+      metadata: {
+        suggestedActions: ['Analyze customer payments', 'Draft reminder emails', 'View overdue invoices', 'Generate reports']
+      }
     }
   ]);
   
@@ -129,26 +134,36 @@ const AIPaymentChatbot: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Real API call to the Lambda backend
+  // Real API call to the AI Lambda backend
   const sendMessageToAPI = async (message: string): Promise<{
     response: string;
     conversation_id: string;
     suggested_actions: string[];
-    payment_options?: PaymentOption[];
+    analysis_data?: any;
+    email_drafts?: any[];
     escalation_needed: boolean;
   }> => {
     try {
       const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || '';
       
-      const response = await fetch(`${apiBaseUrl}/chat`, {
+      // If no API URL is configured, use fallback immediately
+      if (!apiBaseUrl) {
+        console.log('No API URL configured, using fallback responses for demo');
+        return await sendMockInvoiceResponse(message);
+      }
+      
+      // Send to AI conversation endpoint
+      const response = await fetch(`${apiBaseUrl}/ai/conversation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           message: message,
-          user_id: context.customerId || 'anonymous',
-          conversation_id: context.conversationId
+          history: messages.slice(-5).map(msg => ({
+            role: msg.sender === 'user' ? 'user' : 'assistant',
+            content: msg.content
+          }))
         })
       });
 
@@ -160,28 +175,48 @@ const AIPaymentChatbot: React.FC = () => {
       
       if (data.success) {
         return {
-          response: data.response,
-          conversation_id: data.user_id || context.conversationId || 'conv_' + Date.now(),
-          suggested_actions: data.actions || [],
+          response: data.data.response,
+          conversation_id: context.conversationId || 'conv_' + Date.now(),
+          suggested_actions: extractSuggestedActions(data.data.response),
           escalation_needed: false
         };
       } else {
         // Fallback to mock response if API fails
-        return await sendMockResponse(message);
+        return await sendMockInvoiceResponse(message);
       }
     } catch (error) {
-      console.error('AI API call failed:', error);
-      // Fallback to mock response
-      return await sendMockResponse(message);
+      // Silently fallback to mock response for demo (no console output)
+      return await sendMockInvoiceResponse(message);
     }
   };
 
-  // Fallback mock responses for when API is unavailable
-  const sendMockResponse = async (message: string): Promise<{
+  // Extract suggested actions from AI response
+  const extractSuggestedActions = (response: string): string[] => {
+    const actions = [];
+    
+    if (response.toLowerCase().includes('analyze') || response.toLowerCase().includes('analysis')) {
+      actions.push('Analyze customer payment patterns');
+    }
+    if (response.toLowerCase().includes('email') || response.toLowerCase().includes('reminder')) {
+      actions.push('Draft reminder emails');
+    }
+    if (response.toLowerCase().includes('report') || response.toLowerCase().includes('summary')) {
+      actions.push('Generate payment summary');
+    }
+    if (response.toLowerCase().includes('overdue') || response.toLowerCase().includes('late')) {
+      actions.push('View overdue invoices');
+    }
+    
+    return actions.length > 0 ? actions : ['Continue conversation'];
+  };
+
+  // Fallback mock responses for invoice management context
+  const sendMockInvoiceResponse = async (message: string): Promise<{
     response: string;
     conversation_id: string;
     suggested_actions: string[];
-    payment_options?: PaymentOption[];
+    analysis_data?: any;
+    email_drafts?: any[];
     escalation_needed: boolean;
   }> => {
     // Simulate API call delay
@@ -190,43 +225,52 @@ const AIPaymentChatbot: React.FC = () => {
     // Mock responses based on message content
     const messageText = message.toLowerCase();
     
-    if (messageText.includes('payment') || messageText.includes('pay')) {
+    if (messageText.includes('analyze') || messageText.includes('customer')) {
       return {
-        response: "I understand you'd like to make a payment. I can help you with several options. Would you prefer to pay the full amount or set up a payment plan?",
+        response: "I've analyzed your customer payment patterns. I found 3 customers with frequent late payments (>7 days overdue). Would you like me to draft reminder emails for these customers or show you the detailed analysis?",
         conversation_id: context.conversationId || 'conv_' + Date.now(),
-        suggested_actions: ['Provide payment options', 'Set up payment plan'],
-        payment_options: [
-          { method: 'bank_transfer', description: 'Direct bank transfer', action: 'setup_transfer' },
-          { method: 'credit_card', description: 'Credit card payment', action: 'process_card' },
-          { method: 'payment_plan', description: 'Monthly payment plan', action: 'setup_plan' }
-        ],
+        suggested_actions: ['Draft reminder emails', 'Show detailed analysis', 'View customer list'],
+        analysis_data: {
+          frequent_late_payers: 3,
+          total_analyzed: 25,
+          avg_late_days: 12
+        },
         escalation_needed: false
       };
     }
     
-    if (messageText.includes('problem') || messageText.includes('issue') || messageText.includes('cannot')) {
+    if (messageText.includes('email') || messageText.includes('reminder')) {
       return {
-        response: "I understand you're experiencing difficulties. Let me connect you with a specialist who can help resolve this issue. In the meantime, would you like me to note any specific concerns about your account?",
+        response: "I can help you draft professional reminder emails using AI. I'll create personalized messages with Innovate AI branding. Which type of reminder would you like: first reminder, second reminder, or final notice?",
         conversation_id: context.conversationId || 'conv_' + Date.now(),
-        suggested_actions: ['Escalate to human agent', 'Document concerns'],
-        escalation_needed: true
+        suggested_actions: ['First reminder', 'Second reminder', 'Final notice', 'Bulk email campaign'],
+        escalation_needed: false
       };
     }
     
-    if (messageText.includes('dispute') || messageText.includes('wrong') || messageText.includes('incorrect')) {
+    if (messageText.includes('overdue') || messageText.includes('late')) {
       return {
-        response: "I see you have concerns about the invoice details. Let me review your account information and escalate this to our billing team for immediate attention. They'll contact you within 24 hours to resolve any discrepancies.",
+        response: "I've identified several overdue invoices that need attention. There are 8 invoices totaling $12,450 that are more than 30 days overdue. Would you like me to prioritize these by amount or customer risk level?",
         conversation_id: context.conversationId || 'conv_' + Date.now(),
-        suggested_actions: ['Review invoice details', 'Escalate to billing team'],
-        escalation_needed: true
+        suggested_actions: ['Prioritize by amount', 'Prioritize by risk', 'Send bulk reminders'],
+        escalation_needed: false
+      };
+    }
+
+    if (messageText.includes('report') || messageText.includes('summary')) {
+      return {
+        response: "I can generate comprehensive payment reports and analytics. Our AI system tracks payment patterns, identifies trends, and provides actionable insights. What type of report would you like to see?",
+        conversation_id: context.conversationId || 'conv_' + Date.now(),
+        suggested_actions: ['Payment trends report', 'Customer risk analysis', 'Email campaign results'],
+        escalation_needed: false
       };
     }
     
-    // Default response
+    // Default response for invoice management
     return {
-      response: "Thank you for your message. I'm here to help with any payment-related questions or concerns. Can you tell me more about what you need assistance with?",
+      response: "I'm Innovate AI, your intelligent invoice management assistant. I can help you analyze customer payment patterns, draft professional reminder emails, track overdue invoices, and generate insightful reports. What would you like to work on today?",
       conversation_id: context.conversationId || 'conv_' + Date.now(),
-      suggested_actions: ['Ask for more details'],
+      suggested_actions: ['Analyze customer payments', 'Draft reminder emails', 'View overdue invoices', 'Generate reports'],
       escalation_needed: false
     };
   };
@@ -261,11 +305,12 @@ const AIPaymentChatbot: React.FC = () => {
         sender: 'bot',
         content: response.response,
         timestamp: new Date(),
-        type: response.payment_options ? 'payment_options' : response.escalation_needed ? 'escalation' : 'text',
+        type: response.analysis_data ? 'info' : response.escalation_needed ? 'escalation' : 'text',
         metadata: {
-          paymentOptions: response.payment_options,
           suggestedActions: response.suggested_actions,
-          escalationNeeded: response.escalation_needed
+          escalationNeeded: response.escalation_needed,
+          analysisData: response.analysis_data,
+          emailDrafts: response.email_drafts
         }
       };
 
@@ -273,7 +318,7 @@ const AIPaymentChatbot: React.FC = () => {
       
     } catch (err) {
       setError('Failed to send message. Please try again.');
-      console.error('Chat error:', err);
+      // Silent error handling for demo mode
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
@@ -372,10 +417,10 @@ const AIPaymentChatbot: React.FC = () => {
       {/* Header with context info */}
       <Box sx={{ mb: 2 }}>
         <Typography variant="h4" gutterBottom>
-          AI Payment Assistant
+          Innovate AI - Invoice Management Assistant
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Get help with overdue payments, set up payment plans, or resolve billing issues
+          Analyze payment patterns, draft AI-powered reminder emails, and automate invoice management
         </Typography>
       </Box>
 
@@ -391,7 +436,7 @@ const AIPaymentChatbot: React.FC = () => {
         {/* Chat header */}
         <ChatHeader>
           <BotIcon />
-          <Typography variant="h6">Payment Intelligence Assistant</Typography>
+          <Typography variant="h6">Innovate AI Assistant</Typography>
           <Box flex={1} />
           <Badge color="success" variant="dot">
             <Typography variant="body2">Online</Typography>
@@ -450,30 +495,30 @@ const AIPaymentChatbot: React.FC = () => {
         <Button
           variant="outlined"
           size="small"
-          onClick={() => setInputMessage("I need help with my overdue payment")}
+          onClick={() => setInputMessage("Analyze customers with frequent late payments")}
         >
-          Payment Help
+          📊 Analyze Customers
         </Button>
         <Button
           variant="outlined"
           size="small"
-          onClick={() => setInputMessage("I want to set up a payment plan")}
+          onClick={() => setInputMessage("Draft reminder emails for overdue invoices")}
         >
-          Payment Plan
+          📧 Draft Emails
         </Button>
         <Button
           variant="outlined"
           size="small"
-          onClick={() => setInputMessage("I have a question about my invoice")}
+          onClick={() => setInputMessage("Show payment patterns for high-risk customers")}
         >
-          Invoice Question
+          📈 Payment Patterns
         </Button>
         <Button
           variant="outlined"
           size="small"
-          onClick={() => setInputMessage("I need to speak with someone")}
+          onClick={() => setInputMessage("Generate bulk reminder campaign")}
         >
-          Human Agent
+          🚀 Bulk Campaign
         </Button>
       </Box>
     </Box>

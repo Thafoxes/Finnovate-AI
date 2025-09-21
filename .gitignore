@@ -15,3 +15,5 @@ finnovate-dashboard/.env.development
 *.production
 finnovate-dashboard/.env.production
 construction/ai_chatbot/AWS_SETUP_GUIDE.md
+finnovate-dashboard/src/FRONTEND_AI_INTEGRATION.md
+HACKATHON_MVP_COMPLETE.md
