@@ -14,3 +14,4 @@ finnovate-dashboard/.env.development
 *.yaml
 *.production
 finnovate-dashboard/.env.production
+construction/ai_chatbot/AWS_SETUP_GUIDE.md
