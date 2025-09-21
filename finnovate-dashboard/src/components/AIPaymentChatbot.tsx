@@ -146,7 +146,7 @@ const AIPaymentChatbot: React.FC = () => {
     console.log('=== SENDING MESSAGE TO API ===');
     console.log('Message:', message);
     
-    const apiBaseUrl = 'https://59wn0kqhjl.execute-api.us-east-1.amazonaws.com/prod';
+    const apiBaseUrl = 'https://h3330zxmg8.execute-api.us-east-1.amazonaws.com/prod';
     console.log('API URL:', apiBaseUrl);
     
     const requestBody = {
