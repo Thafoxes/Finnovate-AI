@@ -1,0 +1,16 @@
+{
+  "PK": {"S": "INVOICE#test001"},
+  "SK": {"S": "METADATA"},
+  "invoice_id": {"S": "test001"},
+  "invoice_number": {"S": "INV-2024-001"},
+  "customer_id": {"S": "CUST001"},
+  "customer_name": {"S": "Acme Corporation"},
+  "customer_email": {"S": "billing@acme.com"},
+  "issue_date": {"S": "2024-09-01T00:00:00"},
+  "due_date": {"S": "2024-10-01T00:00:00"},
+  "status": {"S": "SENT"},
+  "total_amount": {"N": "1500.00"},
+  "currency": {"S": "USD"},
+  "version": {"N": "1"},
+  "created_at": {"S": "2024-09-01T00:00:00"}
+}

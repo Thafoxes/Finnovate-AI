@@ -9,6 +9,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
 
+# Initialize AWS clients
+ses_client = boto3.client('ses', region_name='us-east-1')
+
 # Domain Value Objects (in same file)
 class InvoiceStatus(Enum):
     DRAFT = "DRAFT"
@@ -660,6 +663,673 @@ class CustomerApplicationService:
         }
         self.table.put_item(Item=history_item)
 
+# Email Service for SES Integration
+class EmailService:
+    def __init__(self, ses_client, sender_email="noreply@innovateai.com"):
+        self.ses_client = ses_client
+        self.sender_email = sender_email
+    
+    def send_payment_reminder(self, recipient_email: str, customer_name: str, 
+                            invoice_id: str, amount: float, days_overdue: int = 0, 
+                            tone: str = "professional") -> dict:
+        """Send AI-generated payment reminder email"""
+        try:
+            # Generate email content based on tone
+            subject, body = self._generate_email_content(customer_name, invoice_id, amount, days_overdue, tone)
+            
+            # Send email via SES
+            response = self.ses_client.send_email(
+                Source=self.sender_email,
+                Destination={'ToAddresses': [recipient_email]},
+                Message={
+                    'Subject': {'Data': subject, 'Charset': 'UTF-8'},
+                    'Body': {'Html': {'Data': body, 'Charset': 'UTF-8'}}
+                }
+            )
+            
+            return {
+                "success": True,
+                "message": f"Payment reminder sent to {recipient_email}",
+                "message_id": response['MessageId'],
+                "subject": subject,
+                "tone": tone
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": f"Failed to send email: {str(e)}"}
+    
+    def generate_email_content(self, customer_name: str, invoice_id: str, 
+                             amount: float, days_overdue: int = 0, 
+                             tone: str = "professional") -> dict:
+        """Generate email content without sending"""
+        try:
+            subject, body = self._generate_email_content(customer_name, invoice_id, amount, days_overdue, tone)
+            
+            return {
+                "success": True,
+                "email_content": {
+                    "subject": subject,
+                    "body": body,
+                    "tone": tone,
+                    "generated_at": datetime.now().isoformat()
+                }
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": f"Failed to generate email: {str(e)}"}
+    
+    def _generate_email_content(self, customer_name: str, invoice_id: str, 
+                              amount: float, days_overdue: int, tone: str) -> tuple:
+        """Generate email content based on tone"""
+        if tone.lower() == 'friendly':
+            return self._generate_friendly_email(customer_name, invoice_id, amount, days_overdue)
+        elif tone.lower() == 'firm':
+            return self._generate_firm_email(customer_name, invoice_id, amount, days_overdue)
+        else:
+            return self._generate_professional_email(customer_name, invoice_id, amount, days_overdue)
+    
+    def _generate_professional_email(self, customer_name: str, invoice_id: str, amount: float, days_overdue: int) -> tuple:
+        """Generate professional tone payment reminder"""
+        subject = f"Payment Reminder - Invoice {invoice_id}"
+        
+        body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2c3e50;">Payment Reminder</h2>
+                
+                <p>Dear {customer_name},</p>
+                
+                <p>We hope this message finds you well. This is a friendly reminder regarding an outstanding payment for your recent invoice.</p>
+                
+                <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
+                    <strong>Invoice Details:</strong><br>
+                    Invoice ID: {invoice_id}<br>
+                    Amount Due: ${amount:,.2f}<br>
+                    {'Days Overdue: ' + str(days_overdue) if days_overdue > 0 else 'Payment Due'}
+                </div>
+                
+                <p>We would appreciate your prompt attention to this matter. If you have any questions about this invoice or need to discuss payment arrangements, please don't hesitate to contact us.</p>
+                
+                <p>Thank you for your business and prompt attention to this matter.</p>
+                
+                <p>Best regards,<br>
+                <strong>Accounts Receivable Team</strong><br>
+                InnovateAI Payment Intelligence</p>
+                
+                <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;">
+                <p style="font-size: 12px; color: #666;">
+                    This is an automated message generated by our AI Payment Intelligence system.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return subject, body
+    
+    def _generate_friendly_email(self, customer_name: str, invoice_id: str, amount: float, days_overdue: int) -> tuple:
+        """Generate friendly tone payment reminder"""
+        subject = f"Friendly Reminder - Invoice {invoice_id} Payment"
+        
+        body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #28a745;">Just a Friendly Reminder! 😊</h2>
+                
+                <p>Hi {customer_name},</p>
+                
+                <p>Hope you're having a great day! We wanted to send you a quick, friendly reminder about an invoice that's waiting for payment.</p>
+                
+                <div style="background-color: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <strong>📄 Invoice Details:</strong><br>
+                    Invoice ID: {invoice_id}<br>
+                    Amount: ${amount:,.2f}<br>
+                    {'⏰ ' + str(days_overdue) + ' days overdue' if days_overdue > 0 else '📅 Payment due'}
+                </div>
+                
+                <p>No worries if this slipped through the cracks - it happens to the best of us! When you get a chance, we'd really appreciate getting this settled.</p>
+                
+                <p>If you have any questions or if there's anything we can help with, just give us a shout. We're here to help! 🤝</p>
+                
+                <p>Thanks so much!<br>
+                <strong>The Team at InnovateAI</strong><br>
+                💡 Making payments smarter with AI</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return subject, body
+    
+    def _generate_firm_email(self, customer_name: str, invoice_id: str, amount: float, days_overdue: int) -> tuple:
+        """Generate firm tone payment reminder"""
+        subject = f"URGENT: Overdue Payment Required - Invoice {invoice_id}"
+        
+        body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #dc3545;">Payment Overdue Notice</h2>
+                
+                <p>Dear {customer_name},</p>
+                
+                <p>This is an urgent notice regarding your overdue account. Immediate payment is required to avoid further collection actions.</p>
+                
+                <div style="background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;">
+                    <strong>⚠️ OVERDUE INVOICE:</strong><br>
+                    Invoice ID: {invoice_id}<br>
+                    Amount Due: ${amount:,.2f}<br>
+                    Days Overdue: {days_overdue}
+                </div>
+                
+                <p><strong>Action Required:</strong> Payment must be received within 7 business days to avoid:</p>
+                <ul>
+                    <li>Additional late fees</li>
+                    <li>Suspension of services</li>
+                    <li>Transfer to collections agency</li>
+                </ul>
+                
+                <p>If payment has already been sent, please contact us immediately with payment details. If you are experiencing financial difficulties, contact us to discuss payment arrangements.</p>
+                
+                <p>Sincerely,<br>
+                <strong>Collections Department</strong><br>
+                InnovateAI Payment Intelligence</p>
+                
+                <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;">
+                <p style="font-size: 12px; color: #666;">
+                    This notice was generated automatically by our AI system. Please remit payment immediately.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return subject, body
+
+# Bedrock Agent Handler for DynamoDB + SES Integration
+class BedrockAgentHandler:
+    def __init__(self, dynamodb_table, ses_client):
+        self.table = dynamodb_table
+        self.email_service = EmailService(ses_client)
+        self.customer_service = CustomerApplicationService(dynamodb_table)
+        self.invoice_service = InvoiceApplicationService(dynamodb_table)
+    
+    def handle_agent_request(self, event, context):
+        """Handle Bedrock Agent requests for DynamoDB operations and email sending"""
+        try:
+            # Extract agent request details
+            function = event.get('function', '')
+            parameters = event.get('parameters', [])
+            
+            # Convert parameters to dictionary
+            params = {}
+            for param in parameters:
+                params[param['name']] = param['value']
+            
+            print(f"Bedrock Agent Function: {function}, Parameters: {params}")
+            
+            # Route to appropriate function
+            if function == 'getOverdueInvoices':
+                result = self._get_overdue_invoices()
+            elif function == 'getInvoiceDetails':
+                result = self._get_invoice_details(params.get('invoiceId'))
+            elif function == 'getCustomerInvoices':
+                result = self._get_customer_invoices(params.get('customerName'))
+            elif function == 'updateInvoiceStatus':
+                result = self._update_invoice_status(params.get('invoiceId'), params.get('status'))
+            elif function == 'getPaymentSummary':
+                result = self._get_payment_summary()
+            elif function == 'generatePaymentEmail':
+                result = self._generate_payment_email(params)
+            elif function == 'sendPaymentReminder':
+                result = self._send_payment_reminder(params)
+            elif function == 'getCustomerRiskAnalysis':
+                result = self._get_customer_risk_analysis(params.get('customerName'))
+            else:
+                result = {"error": f"Unknown function: {function}"}
+            
+            # Return in Bedrock Agent format
+            return {
+                "response": {
+                    "actionGroup": event.get('actionGroup', ''),
+                    "function": function,
+                    "functionResponse": {
+                        "responseBody": {
+                            "TEXT": {
+                                "body": json.dumps(result, default=self._decimal_default)
+                            }
+                        }
+                    }
+                }
+            }
+            
+        except Exception as e:
+            print(f"Bedrock Agent Error: {str(e)}")
+            return {
+                "response": {
+                    "actionGroup": event.get('actionGroup', ''),
+                    "function": function,
+                    "functionResponse": {
+                        "responseBody": {
+                            "TEXT": {
+                                "body": json.dumps({"error": str(e)})
+                            }
+                        }
+                    }
+                }
+            }
+    
+    def _decimal_default(self, obj):
+        """Handle Decimal objects in JSON serialization"""
+        if isinstance(obj, Decimal):
+            return float(obj)
+        raise TypeError
+    
+    def _get_overdue_invoices(self):
+        """Get all overdue invoices"""
+        try:
+            response = self.table.scan(
+                FilterExpression='SK = :sk AND #status = :status',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={':sk': 'METADATA', ':status': 'OVERDUE'}
+            )
+            
+            invoices = []
+            total_overdue_amount = 0
+            
+            for item in response['Items']:
+                amount = float(item.get('total_amount', 0))
+                total_overdue_amount += amount
+                
+                # Calculate days overdue
+                due_date = datetime.fromisoformat(item.get('due_date'))
+                days_overdue = (datetime.now() - due_date).days
+                
+                invoices.append({
+                    "invoice_id": item.get('invoice_id'),
+                    "customer_name": item.get('customer_name'),
+                    "customer_email": item.get('customer_email'),
+                    "total_amount": amount,
+                    "due_date": item.get('due_date'),
+                    "days_overdue": days_overdue,
+                    "currency": item.get('currency', 'USD')
+                })
+            
+            return {
+                "success": True,
+                "count": len(invoices),
+                "total_overdue_amount": total_overdue_amount,
+                "overdue_invoices": invoices
+            }
+            
+        except Exception as e:
+            return {"error": f"Failed to get overdue invoices: {str(e)}"}
+    
+    def _get_invoice_details(self, invoice_id):
+        """Get specific invoice details"""
+        if not invoice_id:
+            return {"error": "Invoice ID is required"}
+        
+        try:
+            invoice = self.invoice_service._get_invoice_by_id(invoice_id)
+            if not invoice:
+                return {"error": f"Invoice {invoice_id} not found"}
+            
+            return {
+                "success": True,
+                "invoice": {
+                    "invoice_id": invoice.invoice_id,
+                    "invoice_number": invoice.invoice_number,
+                    "customer_name": invoice.customer_name,
+                    "customer_email": invoice.customer_email,
+                    "total_amount": float(invoice.total_amount.amount),
+                    "currency": invoice.total_amount.currency,
+                    "status": invoice.status.value,
+                    "issue_date": invoice.issue_date.isoformat(),
+                    "due_date": invoice.due_date.isoformat(),
+                    "is_overdue": invoice.is_overdue,
+                    "days_overdue": (datetime.now() - invoice.due_date).days if invoice.is_overdue else 0
+                }
+            }
+            
+        except Exception as e:
+            return {"error": f"Failed to get invoice: {str(e)}"}
+    
+    def _get_customer_invoices(self, customer_name):
+        """Get all invoices for a customer"""
+        if not customer_name:
+            return {"error": "Customer name is required"}
+        
+        try:
+            response = self.table.scan(
+                FilterExpression='SK = :sk AND customer_name = :customer_name',
+                ExpressionAttributeValues={':sk': 'METADATA', ':customer_name': customer_name}
+            )
+            
+            invoices = []
+            total_amount = 0
+            overdue_count = 0
+            
+            for item in response['Items']:
+                amount = float(item.get('total_amount', 0))
+                total_amount += amount
+                status = item.get('status')
+                
+                if status == 'OVERDUE':
+                    overdue_count += 1
+                
+                invoices.append({
+                    "invoice_id": item.get('invoice_id'),
+                    "total_amount": amount,
+                    "status": status,
+                    "due_date": item.get('due_date'),
+                    "currency": item.get('currency', 'USD')
+                })
+            
+            return {
+                "success": True,
+                "customer_name": customer_name,
+                "total_invoices": len(invoices),
+                "total_amount": total_amount,
+                "overdue_count": overdue_count,
+                "invoices": invoices
+            }
+            
+        except Exception as e:
+            return {"error": f"Failed to get customer invoices: {str(e)}"}
+    
+    def _update_invoice_status(self, invoice_id, new_status):
+        """Update invoice status"""
+        if not invoice_id or not new_status:
+            return {"error": "Invoice ID and status are required"}
+        
+        try:
+            invoice = self.invoice_service.update_invoice_status(invoice_id, new_status)
+            return {
+                "success": True,
+                "invoice_id": invoice.invoice_id,
+                "new_status": invoice.status.value,
+                "message": f"Invoice {invoice_id} status updated to {new_status}"
+            }
+            
+        except Exception as e:
+            return {"error": f"Failed to update invoice: {str(e)}"}
+    
+    def _get_payment_summary(self):
+        """Get overall payment summary"""
+        try:
+            response = self.table.scan(
+                FilterExpression='SK = :sk',
+                ExpressionAttributeValues={':sk': 'METADATA'}
+            )
+            
+            summary = {
+                "total_invoices": 0,
+                "total_amount": 0,
+                "paid_invoices": 0,
+                "paid_amount": 0,
+                "overdue_invoices": 0,
+                "overdue_amount": 0,
+                "draft_invoices": 0,
+                "sent_invoices": 0
+            }
+            
+            for item in response['Items']:
+                summary["total_invoices"] += 1
+                amount = float(item.get('total_amount', 0))
+                summary["total_amount"] += amount
+                status = item.get('status')
+                
+                if status == 'PAID':
+                    summary["paid_invoices"] += 1
+                    summary["paid_amount"] += amount
+                elif status == 'OVERDUE':
+                    summary["overdue_invoices"] += 1
+                    summary["overdue_amount"] += amount
+                elif status == 'DRAFT':
+                    summary["draft_invoices"] += 1
+                elif status == 'SENT':
+                    summary["sent_invoices"] += 1
+            
+            # Calculate collection rate
+            if summary["total_amount"] > 0:
+                summary["collection_rate"] = (summary["paid_amount"] / summary["total_amount"]) * 100
+            else:
+                summary["collection_rate"] = 0
+            
+            return {"success": True, "summary": summary}
+            
+        except Exception as e:
+            return {"error": f"Failed to get payment summary: {str(e)}"}
+    
+    def _generate_payment_email(self, params):
+        """Generate AI-powered payment reminder email content"""
+        try:
+            customer_name = params.get('customerName', 'Valued Customer')
+            invoice_id = params.get('invoiceId', '')
+            amount = float(params.get('amount', 0))
+            days_overdue = int(params.get('daysOverdue', 0))
+            tone = params.get('tone', 'professional')
+            
+            # If invoice_id provided, get details from database
+            if invoice_id:
+                invoice_details = self._get_invoice_details(invoice_id)
+                if invoice_details.get('success'):
+                    invoice = invoice_details['invoice']
+                    customer_name = invoice.get('customer_name', customer_name)
+                    amount = invoice.get('total_amount', amount)
+                    days_overdue = invoice.get('days_overdue', days_overdue)
+            
+            result = self.email_service.generate_email_content(customer_name, invoice_id, amount, days_overdue, tone)
+            return result
+            
+        except Exception as e:
+            return {"error": f"Failed to generate email: {str(e)}"}
+    
+    def _send_payment_reminder(self, params):
+        """Send payment reminder email via SES"""
+        try:
+            recipient_email = params.get('recipientEmail', '')
+            customer_name = params.get('customerName', 'Valued Customer')
+            invoice_id = params.get('invoiceId', '')
+            amount = float(params.get('amount', 0))
+            days_overdue = int(params.get('daysOverdue', 0))
+            tone = params.get('tone', 'professional')
+            
+            if not recipient_email:
+                return {"error": "Recipient email is required"}
+            
+            # If invoice_id provided, get details from database
+            if invoice_id:
+                invoice_details = self._get_invoice_details(invoice_id)
+                if invoice_details.get('success'):
+                    invoice = invoice_details['invoice']
+                    customer_name = invoice.get('customer_name', customer_name)
+                    amount = invoice.get('total_amount', amount)
+                    days_overdue = invoice.get('days_overdue', days_overdue)
+            
+            result = self.email_service.send_payment_reminder(
+                recipient_email, customer_name, invoice_id, amount, days_overdue, tone
+            )
+            return result
+            
+        except Exception as e:
+            return {"error": f"Failed to send email: {str(e)}"}
+    
+    def _get_customer_risk_analysis(self, customer_name):
+        """Get customer risk analysis"""
+        if not customer_name:
+            return {"error": "Customer name is required"}
+        
+        try:
+            # Get customer data using customer service
+            customers = self.customer_service.get_all_customers(search_term=customer_name)
+            
+            if not customers:
+                return {"error": f"Customer '{customer_name}' not found"}
+            
+            customer = customers[0]  # Take first match
+            
+            # Analyze risk factors
+            risk_factors = []
+            if customer['overdue_count'] > 0:
+                risk_factors.append(f"Has {customer['overdue_count']} overdue invoices totaling ${customer['overdue_amount']:,.2f}")
+            
+            payment_ratio = customer.get('payment_ratio', 0)
+            if payment_ratio < 0.8:
+                risk_factors.append(f"Low payment rate: {payment_ratio*100:.1f}%")
+            
+            if customer['average_invoice_amount'] > 5000:
+                risk_factors.append("High-value customer requiring close monitoring")
+            
+            # Determine recommendation
+            risk_score = customer.get('risk_score', 0)
+            if risk_score > 70:
+                recommendation = "HIGH RISK: Implement strict payment terms and consider collections"
+            elif risk_score > 40:
+                recommendation = "MEDIUM RISK: Monitor closely and send regular reminders"
+            else:
+                recommendation = "LOW RISK: Standard payment terms acceptable"
+            
+            return {
+                "success": True,
+                "customer_analysis": {
+                    "customer_name": customer['customer_name'],
+                    "risk_score": risk_score,
+                    "total_invoices": customer['total_invoices'],
+                    "total_amount": customer['total_amount'],
+                    "overdue_amount": customer['overdue_amount'],
+                    "payment_ratio": payment_ratio,
+                    "risk_factors": risk_factors,
+                    "recommendation": recommendation
+                }
+            }
+            
+        except Exception as e:
+            return {"error": f"Failed to analyze customer risk: {str(e)}"}
+
+# Simple AI Chatbot Handler
+def handle_ai_chatbot(event, invoice_service, customer_service):
+    """Handle AI chatbot requests - simple implementation for hackathon MVP"""
+    try:
+        body = json.loads(event.get('body', '{}'))
+        message = body.get('message', '').lower()
+        user_id = body.get('user_id', 'anonymous')
+        
+        print(f"AI Chatbot received message: {message}")
+        
+        # Simple keyword-based responses for MVP
+        response_text = ""
+        actions = []
+        
+        if 'hello' in message or 'hi' in message:
+            response_text = "Hello! I'm your AI payment assistant. I can help you with invoices, payments, and customer information. What would you like to know?"
+        
+        elif 'invoice' in message:
+            if 'overdue' in message:
+                # Get overdue invoices
+                try:
+                    response = invoice_service.table.scan(
+                        FilterExpression='SK = :sk AND #status = :status',
+                        ExpressionAttributeNames={'#status': 'status'},
+                        ExpressionAttributeValues={':sk': 'METADATA', ':status': 'OVERDUE'}
+                    )
+                    overdue_count = len(response.get('Items', []))
+                    total_overdue = sum(float(item.get('total_amount', 0)) for item in response.get('Items', []))
+                    
+                    response_text = f"You have {overdue_count} overdue invoices totaling ${total_overdue:,.2f}. Would you like me to send payment reminders?"
+                    actions = ["Send Payment Reminders", "View Overdue Details"]
+                except:
+                    response_text = "I'm having trouble accessing overdue invoice data right now. Please try again."
+            
+            elif 'total' in message or 'count' in message:
+                # Get total invoice count
+                try:
+                    response = invoice_service.table.scan(
+                        FilterExpression='SK = :sk',
+                        ExpressionAttributeValues={':sk': 'METADATA'}
+                    )
+                    total_invoices = len(response.get('Items', []))
+                    total_amount = sum(float(item.get('total_amount', 0)) for item in response.get('Items', []))
+                    
+                    response_text = f"You have {total_invoices} total invoices worth ${total_amount:,.2f}."
+                    actions = ["View All Invoices", "Create New Invoice"]
+                except:
+                    response_text = "I'm having trouble accessing invoice data right now. Please try again."
+            
+            else:
+                response_text = "I can help you with invoices! I can show you overdue invoices, total invoice counts, or help create new ones. What specifically would you like to know?"
+                actions = ["Show Overdue Invoices", "Show All Invoices", "Create Invoice"]
+        
+        elif 'customer' in message:
+            if 'risk' in message:
+                try:
+                    customers = customer_service.get_all_customers()
+                    high_risk = [c for c in customers if c.get('risk_score', 0) > 70]
+                    response_text = f"You have {len(high_risk)} high-risk customers. Would you like to see details or send reminders?"
+                    actions = ["View High-Risk Customers", "Send Reminders"]
+                except:
+                    response_text = "I'm having trouble accessing customer risk data right now."
+            else:
+                try:
+                    customers = customer_service.get_all_customers()
+                    total_customers = len(customers)
+                    response_text = f"You have {total_customers} customers in your system. I can help analyze their payment patterns or risk scores."
+                    actions = ["Show Customer Statistics", "Analyze Risk Scores"]
+                except:
+                    response_text = "I'm having trouble accessing customer data right now."
+        
+        elif 'payment' in message:
+            response_text = "I can help you track payments! I can show you payment status, overdue accounts, or help process new payments. What would you like to do?"
+            actions = ["Check Payment Status", "View Overdue Payments", "Process Payment"]
+        
+        elif 'help' in message:
+            response_text = """I'm your AI payment assistant! Here's what I can help you with:
+            
+📊 **Invoice Management**: View invoices, check overdue status, create new invoices
+💰 **Payment Tracking**: Monitor payments, process new payments
+👥 **Customer Analysis**: View customer data, analyze risk scores
+📧 **Communications**: Generate payment reminders, send notifications
+
+Just ask me about invoices, customers, payments, or anything related to your accounts receivable!"""
+            actions = ["Show Dashboard", "View Recent Activity"]
+        
+        else:
+            response_text = "I'm here to help with your invoices, payments, and customers! Try asking me about 'overdue invoices', 'customer risk', or 'payment status'. You can also say 'help' for more options."
+            actions = ["Show Help", "View Dashboard"]
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                'success': True,
+                'response': response_text,
+                'actions': actions,
+                'timestamp': datetime.now().isoformat(),
+                'user_id': user_id
+            })
+        }
+        
+    except Exception as e:
+        print(f"AI Chatbot error: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                'success': False,
+                'error': f'AI service error: {str(e)}',
+                'response': "I'm sorry, I'm having technical difficulties right now. Please try again in a moment."
+            })
+        }
+
 def lambda_handler(event, context):
     """Fixed Lambda handler with proper routing"""
     
@@ -725,6 +1395,8 @@ def lambda_handler(event, context):
             return handle_overdue_check(invoice_service)
         elif http_method == 'POST' and 'payments' in path:
             return handle_process_payment(event, invoice_service)
+        elif http_method == 'POST' and ('chat' in path or 'ai' in path):
+            return handle_ai_chatbot(event, invoice_service, customer_service)
         elif http_method == 'POST':
             return handle_create_invoice(event, invoice_service)
             

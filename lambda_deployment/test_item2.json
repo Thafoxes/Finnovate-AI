@@ -1,0 +1,16 @@
+{
+  "PK": {"S": "INVOICE#test002"},
+  "SK": {"S": "METADATA"},
+  "invoice_id": {"S": "test002"},
+  "invoice_number": {"S": "INV-2024-002"},
+  "customer_id": {"S": "CUST002"},
+  "customer_name": {"S": "TechStart Inc"},
+  "customer_email": {"S": "finance@techstart.com"},
+  "issue_date": {"S": "2024-09-05T00:00:00"},
+  "due_date": {"S": "2024-08-20T00:00:00"},
+  "status": {"S": "OVERDUE"},
+  "total_amount": {"N": "2500.00"},
+  "currency": {"S": "USD"},
+  "version": {"N": "1"},
+  "created_at": {"S": "2024-09-05T00:00:00"}
+}

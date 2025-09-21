@@ -1,0 +1,16 @@
+{
+  "PK": {"S": "INVOICE#test003"},
+  "SK": {"S": "METADATA"},
+  "invoice_id": {"S": "test003"},
+  "invoice_number": {"S": "INV-2024-003"},
+  "customer_id": {"S": "CUST003"},
+  "customer_name": {"S": "Global Solutions"},
+  "customer_email": {"S": "accounts@globalsol.com"},
+  "issue_date": {"S": "2024-08-15T00:00:00"},
+  "due_date": {"S": "2024-09-15T00:00:00"},
+  "status": {"S": "PAID"},
+  "total_amount": {"N": "3200.00"},
+  "currency": {"S": "USD"},
+  "version": {"N": "1"},
+  "created_at": {"S": "2024-08-15T00:00:00"}
+}

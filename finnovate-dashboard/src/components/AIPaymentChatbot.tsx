@@ -129,8 +129,55 @@ const AIPaymentChatbot: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Mock API call to the FastAPI backend
+  // Real API call to the Lambda backend
   const sendMessageToAPI = async (message: string): Promise<{
+    response: string;
+    conversation_id: string;
+    suggested_actions: string[];
+    payment_options?: PaymentOption[];
+    escalation_needed: boolean;
+  }> => {
+    try {
+      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || '';
+      
+      const response = await fetch(`${apiBaseUrl}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message,
+          user_id: context.customerId || 'anonymous',
+          conversation_id: context.conversationId
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        return {
+          response: data.response,
+          conversation_id: data.user_id || context.conversationId || 'conv_' + Date.now(),
+          suggested_actions: data.actions || [],
+          escalation_needed: false
+        };
+      } else {
+        // Fallback to mock response if API fails
+        return await sendMockResponse(message);
+      }
+    } catch (error) {
+      console.error('AI API call failed:', error);
+      // Fallback to mock response
+      return await sendMockResponse(message);
+    }
+  };
+
+  // Fallback mock responses for when API is unavailable
+  const sendMockResponse = async (message: string): Promise<{
     response: string;
     conversation_id: string;
     suggested_actions: string[];

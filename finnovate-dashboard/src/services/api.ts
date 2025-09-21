@@ -1,6 +1,6 @@
 import { Invoice, Customer, CreateInvoiceForm, UpdateInvoiceForm, PaymentForm, PaymentHistory, ApiResponse } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://59wn0kqhjl.execute-api.us-east-1.amazonaws.com/prod';
 
 class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}, retries = 3): Promise<T> {
