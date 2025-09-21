@@ -1,0 +1,35 @@
+{
+  "CallerReference": "finnovate-dashboard-20250921143000",
+  "Comment": "Finnovate Dashboard HTTPS Distribution",
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "S3-finnovate-dashboard",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "TrustedSigners": {
+      "Enabled": false,
+      "Quantity": 0
+    },
+    "ForwardedValues": {
+      "QueryString": false,
+      "Cookies": {
+        "Forward": "none"
+      }
+    },
+    "MinTTL": 0
+  },
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "S3-finnovate-dashboard",
+        "DomainName": "finnovate-dashboard-1633823160.s3-website-us-east-1.amazonaws.com",
+        "CustomOriginConfig": {
+          "HTTPPort": 80,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "http-only"
+        }
+      }
+    ]
+  },
+  "Enabled": true,
+  "PriceClass": "PriceClass_100"
+}
