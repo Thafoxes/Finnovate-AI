@@ -1389,16 +1389,20 @@ def handle_ai_chatbot(event, invoice_service, customer_service):
     try:
         body = json.loads(event.get('body', '{}'))
         message = body.get('message', '')
-        session_id = body.get('session_id')
+        session_id = body.get('session_id') or body.get('conversationId')  # Check both fields
         user_id = body.get('user_id', 'anonymous')
         
         print(f"AI Chatbot received message: {message}")
+        print(f"Session ID: {session_id}")
         
         # First, try the real Bedrock Agent
         agent_result = invoke_payment_intelligence_agent(message, session_id)
         
+        print(f"Agent result: {agent_result}")
+        
         if agent_result and agent_result['success']:
             # Return the real AI response
+            print("Returning Bedrock Agent response")
             return success_response({
                 'response': agent_result['response'],
                 'session_id': agent_result['session_id'],
@@ -1407,6 +1411,7 @@ def handle_ai_chatbot(event, invoice_service, customer_service):
             })
         
         # Fallback to original keyword-based responses
+        print("Falling back to mock responses")
         message_lower = message.lower()
         response_text = ""
         actions = []
@@ -1583,31 +1588,13 @@ def lambda_handler(event, context):
                     return handle_get_customer_by_id(customer_id, customer_service)
             else:
                 return handle_get_all_customers(customer_service, query_params)
+        elif http_method == 'POST' and ('chat' in path or 'ai' in path or 'conversation' in path):
+            print("DEBUG: Direct AI endpoint hit - calling AI handler")
+            return handle_ai_chatbot(event, invoice_service, customer_service)
         elif http_method == 'POST' and ('test-data' in path or 'test_data' in path):
-            # Check if this is an AI conversation request
-            print(f"DEBUG: test-data endpoint hit, body: {event.get('body', 'NO BODY')}")
-            try:
-                body = json.loads(event.get('body', '{}'))
-                print(f"DEBUG: Parsed body: {body}")
-                print(f"DEBUG: Body keys: {list(body.keys()) if body else 'No keys'}")
-                
-                if 'message' in body and ('conversationId' in body or 'session_id' in body):
-                    # This is an AI conversation request, handle it as such
-                    print("DEBUG: AI conversation detected in test-data endpoint (with conversationId)")
-                    return handle_ai_chatbot(event, invoice_service, customer_service)
-                elif 'message' in body:
-                    # Also treat any request with a 'message' field as AI
-                    print("DEBUG: Message field detected, treating as AI conversation")
-                    return handle_ai_chatbot(event, invoice_service, customer_service)
-                else:
-                    print("DEBUG: No message field found, using test data generation")
-            except Exception as e:
-                print(f"ERROR: Error parsing body for AI detection: {e}")
-                print(f"ERROR: Raw body was: {event.get('body', 'NO BODY')}")
-                pass
-            # Otherwise, handle as test data generation
-            print("DEBUG: Falling back to test data generation")
-            return handle_generate_test_data(table)
+            # ALWAYS call AI handler for ANY POST to test-data
+            print("DEBUG: test-data endpoint - FORCED AI handler")
+            return handle_ai_chatbot(event, invoice_service, customer_service)
         elif http_method == 'POST' and ('overdue' in path or 'overdue-check' in path):
             return handle_overdue_check(invoice_service)
         elif http_method == 'POST' and 'payments' in path:
@@ -2096,84 +2083,18 @@ def handle_get_customer_statistics(customer_service):
         return error_response(400, f"Failed to get customer statistics: {str(e)}")
 
 def handle_generate_test_data(table):
-    """Generate test data for development"""
-    try:
-        customers = [
-            {"id": "CUST001", "name": "Acme Corporation", "email": "billing@acme.com"},
-            {"id": "CUST002", "name": "TechStart Inc", "email": "finance@techstart.com"},
-            {"id": "CUST003", "name": "Global Solutions", "email": "accounts@globalsol.com"}
-        ]
-        
-        invoices_created = 0
-        statuses = ['DRAFT', 'SENT', 'PAID', 'OVERDUE']
-        
-        for i in range(12):
-            customer = customers[i % len(customers)]
-            invoice_id = str(uuid.uuid4())
-            invoice_number = f"INV-2024-{str(i+1).zfill(3)}"
-            
-            amounts = [1500, 2500, 3200, 4800]
-            total_amount = amounts[i % len(amounts)]
-            status = statuses[i % len(statuses)]
-            
-            if status == 'PAID':
-                paid_amount = Decimal(str(total_amount))
-                remaining_balance = Decimal('0')
-            elif status == 'OVERDUE':
-                paid_amount = Decimal(str(total_amount)) * Decimal('0.3')
-                remaining_balance = Decimal(str(total_amount)) - paid_amount
-            else:
-                paid_amount = Decimal('0')
-                remaining_balance = Decimal(str(total_amount))
-            
-            issue_date = datetime.now() - timedelta(days=30-i)
-            due_date = issue_date + timedelta(days=30)
-            
-            invoice_item = {
-                'PK': f'INVOICE#{invoice_id}',
-                'SK': 'METADATA',
-                'invoice_id': invoice_id,
-                'invoice_number': invoice_number,
-                'customer_id': customer['id'],
-                'customer_name': customer['name'],
-                'customer_email': customer['email'],
-                'issue_date': issue_date.isoformat(),
-                'due_date': due_date.isoformat(),
-                'status': status,
-                'total_amount': Decimal(str(total_amount)),
-                'paid_amount': paid_amount,
-                'remaining_balance': remaining_balance,
-                'currency': 'USD',
-                'version': 1,
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
-            }
-            
-            table.put_item(Item=invoice_item)
-            
-            # Add line item
-            line_item = {
-                'PK': f'INVOICE#{invoice_id}',
-                'SK': 'LINEITEM#001',
-                'description': f'Professional Services - Project {i+1}',
-                'quantity': Decimal('1'),
-                'unit_price': Decimal(str(total_amount)),
-                'currency': 'USD',
-                'line_total': Decimal(str(total_amount))
-            }
-            
-            table.put_item(Item=line_item)
-            invoices_created += 1
-        
-        return {
-            'statusCode': 200,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({
-                'success': True,
-                'message': f'Generated {invoices_created} test invoices',
-                'invoices_created': invoices_created
-            })
-        }
-        
-    except Exception as e:
-        return error_response(500, f"Failed to generate test data: {str(e)}")
+    """NO LONGER GENERATES TEST DATA - REDIRECTS TO AI HANDLER"""
+    print("DEBUG: handle_generate_test_data called - REDIRECTING TO AI")
+    
+    # Create a fake event for AI handler
+    fake_event = {
+        'body': '{"message": "Hello from redirected test-data endpoint"}',
+        'httpMethod': 'POST'
+    }
+    
+    # Initialize services
+    invoice_service = InvoiceApplicationService(table)
+    customer_service = CustomerApplicationService(table)
+    
+    # Call AI handler directly
+    return handle_ai_chatbot(fake_event, invoice_service, customer_service)

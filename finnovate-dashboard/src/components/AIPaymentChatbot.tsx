@@ -134,7 +134,7 @@ const AIPaymentChatbot: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Real API call to the AI Lambda backend
+  // Real API call to the AI Lambda backend - SIMPLIFIED
   const sendMessageToAPI = async (message: string): Promise<{
     response: string;
     conversation_id: string;
@@ -143,51 +143,47 @@ const AIPaymentChatbot: React.FC = () => {
     email_drafts?: any[];
     escalation_needed: boolean;
   }> => {
+    console.log('=== SENDING MESSAGE TO API ===');
+    console.log('Message:', message);
+    
+    const apiBaseUrl = 'https://59wn0kqhjl.execute-api.us-east-1.amazonaws.com/prod';
+    console.log('API URL:', apiBaseUrl);
+    
+    const requestBody = {
+      message: message,
+      conversationId: 'test_' + Date.now()
+    };
+    console.log('Request body:', requestBody);
+    
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || '';
-      
-      // If no API URL is configured, use fallback immediately
-      if (!apiBaseUrl) {
-        console.log('No API URL configured, using fallback responses for demo');
-        return await sendMockInvoiceResponse(message);
-      }
-      
-      // Send to AI conversation endpoint (using test-data as workaround)
       const response = await fetch(`${apiBaseUrl}/test-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          message: message,
-          conversationId: context.conversationId || 'conv_' + Date.now(),
-          history: messages.slice(-5).map(msg => ({
-            role: msg.sender === 'user' ? 'user' : 'assistant',
-            content: msg.content
-          }))
-        })
+        body: JSON.stringify(requestBody)
       });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
       
-      if (data.success) {
-        return {
-          response: data.data.response,
-          conversation_id: context.conversationId || 'conv_' + Date.now(),
-          suggested_actions: extractSuggestedActions(data.data.response),
-          escalation_needed: false
-        };
-      } else {
-        // Fallback to mock response if API fails
-        return await sendMockInvoiceResponse(message);
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+      
+      const data = await response.json();
+      console.log('Response data:', data);
+      
+      return {
+        response: data.data?.response || data.response || 'No response received',
+        conversation_id: 'test_' + Date.now(),
+        suggested_actions: ['Continue conversation'],
+        escalation_needed: false
+      };
+      
     } catch (error) {
-      // Silently fallback to mock response for demo (no console output)
-      return await sendMockInvoiceResponse(message);
+      console.error('API Error:', error);
+      throw error;
     }
   };
 
@@ -317,9 +313,20 @@ const AIPaymentChatbot: React.FC = () => {
 
       setMessages(prev => [...prev, botMessage]);
       
-    } catch (err) {
-      setError('Failed to send message. Please try again.');
-      // Silent error handling for demo mode
+    } catch (err: any) {
+      console.error('=== MESSAGE SEND ERROR ===');
+      console.error('Error details:', err);
+      setError(`Failed to send message: ${err.message || err}`);
+      
+      // Show error message in chat
+      const errorMessage: ChatMessage = {
+        id: `error_${Date.now()}`,
+        sender: 'bot',
+        content: `Sorry, I encountered an error: ${err.message || err}. Please check the console for details.`,
+        timestamp: new Date(),
+        type: 'text'
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
