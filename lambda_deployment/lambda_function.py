@@ -2,6 +2,7 @@
 
 import json
 import boto3
+import os
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -10,7 +11,52 @@ from enum import Enum
 from typing import List, Optional
 
 # Initialize AWS clients
-ses_client = boto3.client('ses', region_name='us-east-1')
+ses_client = boto3.client('ses', region_name=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
+
+# Standardized API Response Helpers
+def success_response(data=None, message=None, status_code=200):
+    """Create a standardized success response"""
+    response_body = {
+        'success': True
+    }
+    
+    if data is not None:
+        response_body['data'] = data
+    
+    if message:
+        response_body['message'] = message
+    
+    return {
+        'statusCode': status_code,
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id',
+            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+        },
+        'body': json.dumps(response_body, default=str)
+    }
+
+def error_response(message, status_code=400, data=None):
+    """Create a standardized error response"""
+    response_body = {
+        'success': False,
+        'message': message
+    }
+    
+    if data is not None:
+        response_body['data'] = data
+    
+    return {
+        'statusCode': status_code,
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id',
+            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+        },
+        'body': json.dumps(response_body, default=str)
+    }
 
 # Domain Value Objects (in same file)
 class InvoiceStatus(Enum):
@@ -1338,7 +1384,8 @@ def lambda_handler(event, context):
         
         # Initialize services
         dynamodb = boto3.resource('dynamodb')
-        table = dynamodb.Table('InvoiceManagementTable')
+        table_name = os.environ.get('DYNAMODB_TABLE_NAME', 'InvoiceManagementTable')
+        table = dynamodb.Table(table_name)
         invoice_service = InvoiceApplicationService(table)
         
         # Get routing information
@@ -1520,31 +1567,16 @@ def handle_get_all_invoices(table):
                 'is_overdue': datetime.fromisoformat(item.get('due_date')) < datetime.now() and item.get('status') not in ['PAID', 'CANCELLED']
             })
         
-        return {
-            'statusCode': 200,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({
-                'success': True,
+        return success_response(
+            data={
                 'invoices': invoices,
                 'count': len(invoices)
-            }, default=str)
-        }
+            },
+            message=f"Retrieved {len(invoices)} invoices successfully"
+        )
         
     except Exception as e:
-        return error_response(400, f"Failed to get invoices: {str(e)}")
-
-def error_response(status_code, message):
-    """Helper function for error responses"""
-    return {
-        'statusCode': status_code,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-        },
-        'body': json.dumps({'error': message})
-    }
+        return error_response(f"Failed to get invoices: {str(e)}", 500)
 
 # Also fix the create_invoice method in InvoiceApplicationService
 def create_invoice_fixed(self, command_data: dict) -> Invoice:
@@ -1828,7 +1860,6 @@ def handle_get_all_customers(customer_service, query_params=None):
         customers = customer_service.get_all_customers(search_term, risk_filter, sort_by)
         
         response_data = {
-            'success': True,
             'customers': customers,
             'count': len(customers),
             'filters_applied': {
@@ -1842,14 +1873,13 @@ def handle_get_all_customers(customer_service, query_params=None):
         if include_stats:
             response_data['statistics'] = customer_service.get_customer_statistics()
         
-        return {
-            'statusCode': 200,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps(response_data, default=str)
-        }
+        return success_response(
+            data=response_data,
+            message=f"Retrieved {len(customers)} customers successfully"
+        )
         
     except Exception as e:
-        return error_response(400, f"Failed to get customers: {str(e)}")
+        return error_response(f"Failed to get customers: {str(e)}", 500)
 
 def handle_get_customer_by_id(customer_id, customer_service):
     """Handle getting a specific customer"""
@@ -1857,26 +1887,19 @@ def handle_get_customer_by_id(customer_id, customer_service):
         customer = customer_service.get_customer_by_id(customer_id)
         
         if not customer:
-            return {
-                'statusCode': 404,
-                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({
-                    'error': 'Customer not found',
-                    'customer_id': customer_id
-                })
-            }
+            return error_response(
+                f"Customer not found",
+                404,
+                data={'customer_id': customer_id}
+            )
         
-        return {
-            'statusCode': 200,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({
-                'success': True,
-                'customer': customer
-            }, default=str)
-        }
+        return success_response(
+            data={'customer': customer},
+            message="Customer retrieved successfully"
+        )
         
     except Exception as e:
-        return error_response(400, f"Failed to get customer: {str(e)}")
+        return error_response(f"Failed to get customer: {str(e)}", 500)
 
 def handle_get_customer_invoices(customer_id, customer_service):
     """Handle getting customer invoices"""
