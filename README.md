@@ -12,7 +12,6 @@ Finnovate AI is a comprehensive invoice management platform that leverages **Ama
 
 - 🤖 **AI Payment Assistant** - Natural language interface for invoice queries
 - 📊 **Real-time Analytics** - Live dashboard with payment insights
-- 💰 **Cash Flow Optimization** - Predictive analytics for financial planning
 - 🔔 **Smart Notifications** - Automated payment reminders and alerts
 - 📈 **Customer Risk Analysis** - AI-powered risk scoring and management
 - ⚡ **Serverless Architecture** - Scalable, cost-effective AWS deployment
