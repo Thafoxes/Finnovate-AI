@@ -75,7 +75,19 @@ class ApiService {
   }
 
   async getInvoice(invoiceId: string): Promise<Invoice> {
-    const response = await this.request<any>(`/invoices?invoice_id=${invoiceId}`);
+    // Validate invoice ID
+    if (!invoiceId || invoiceId.trim().length === 0) {
+      throw new Error('Invoice ID is required');
+    }
+    
+    // Sanitize invoice ID (basic validation)
+    const cleanId = invoiceId.trim();
+    if (cleanId.length < 5) {
+      throw new Error('Invalid invoice ID format');
+    }
+    
+    console.log(`Fetching invoice: ${cleanId}`);
+    const response = await this.request<any>(`/invoices?invoice_id=${cleanId}`);
     // Handle different response formats
     if (response.success && response.invoice) {
       const invoice = response.invoice;
@@ -186,8 +198,10 @@ class ApiService {
       
       // Handle response format and add outstanding_amount for compatibility
       let customers = [];
-      if (response.success && response.customers) {
-        customers = response.customers;
+      if (response.success && response.data && response.data.customers) {
+        customers = response.data.customers;
+      } else if (response.success && Array.isArray(response.data)) {
+        customers = response.data;
       } else if (Array.isArray(response)) {
         customers = response;
       } else {
@@ -212,7 +226,9 @@ class ApiService {
     
     // Handle response format and add outstanding_amount
     let customer;
-    if (response.success && response.customer) {
+    if (response.success && response.data) {
+      customer = response.data;
+    } else if (response.success && response.customer) {
       customer = response.customer;
     } else if (response.customer_id) {
       customer = response;
@@ -231,10 +247,11 @@ class ApiService {
     const response = await this.request<any>(`/customers/${customerId}/invoices`);
     
     // Handle response format
-    if (response.success && response.invoices) {
+    if (response.success && response.data && Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.success && response.invoices) {
       return response.invoices;
-    }
-    if (Array.isArray(response)) {
+    } else if (Array.isArray(response)) {
       return response;
     }
     console.error('Unexpected customer invoices response format:', response);
@@ -245,10 +262,11 @@ class ApiService {
     const response = await this.request<any>('/customers/statistics');
     
     // Handle response format
-    if (response.success && response.statistics) {
+    if (response.success && response.data) {
+      return response.data;
+    } else if (response.success && response.statistics) {
       return response.statistics;
-    }
-    if (response.total_customers !== undefined) {
+    } else if (response.total_customers !== undefined) {
       return response;
     }
     console.error('Unexpected customer statistics response format:', response);

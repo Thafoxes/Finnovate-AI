@@ -1,3 +1,4 @@
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiService } from '../services/api';
 import { CreateInvoiceForm, UpdateInvoiceForm, PaymentForm } from '../types';
@@ -16,10 +17,23 @@ export const useInvoices = () => {
 };
 
 export const useInvoice = (invoiceId: string) => {
+  const queryClient = useQueryClient();
+  
+  // Clear any stale cache entries for invalid IDs
+  React.useEffect(() => {
+    if (!invoiceId || invoiceId.trim().length === 0) {
+      queryClient.removeQueries({ queryKey: ['invoice'] });
+    }
+  }, [invoiceId, queryClient]);
+  
   return useQuery({
     queryKey: ['invoice', invoiceId],
     queryFn: () => apiService.getInvoice(invoiceId),
-    enabled: !!invoiceId,
+    enabled: !!invoiceId && invoiceId.trim().length > 0,
+    retry: 1, // Only retry once to prevent infinite loops
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    // Add error boundary to prevent crashes
+    throwOnError: false,
   });
 };
 

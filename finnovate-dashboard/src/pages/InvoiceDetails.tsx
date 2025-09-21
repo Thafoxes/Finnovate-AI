@@ -16,7 +16,11 @@ import { InvoiceStatus } from '../types';
 const InvoiceDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: invoice, isLoading, error } = useInvoice(id!);
+  
+  // Validate invoice ID before making API call
+  const isValidId = id && id.trim().length > 0;
+  
+  const { data: invoice, isLoading, error } = useInvoice(id || '');
   const updateStatus = useUpdateInvoiceStatus();
   const deleteInvoice = useDeleteInvoice();
 
@@ -24,8 +28,29 @@ const InvoiceDetails: React.FC = () => {
   const [statusDialog, setStatusDialog] = useState(false);
   const [newStatus, setNewStatus] = useState<InvoiceStatus>('SENT');
 
+  // Handle invalid ID
+  if (!isValidId) {
+    return (
+      <Box>
+        <Typography color="error">Invalid invoice ID</Typography>
+        <Button onClick={() => navigate('/invoices')}>
+          Back to Invoices
+        </Button>
+      </Box>
+    );
+  }
+
   if (isLoading) return <Typography>Loading invoice...</Typography>;
-  if (error || !invoice) return <Typography color="error">Invoice not found</Typography>;
+  if (error || !invoice) {
+    return (
+      <Box>
+        <Typography color="error">Invoice not found</Typography>
+        <Button onClick={() => navigate('/invoices')}>
+          Back to Invoices
+        </Button>
+      </Box>
+    );
+  }
 
   const handleStatusUpdate = async () => {
     try {
