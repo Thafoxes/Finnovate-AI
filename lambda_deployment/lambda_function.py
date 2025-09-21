@@ -58,6 +58,64 @@ def error_response(message, status_code=400, data=None):
         'body': json.dumps(response_body, default=str)
     }
 
+def format_invoice_for_frontend(item):
+    """Format invoice data for frontend compatibility"""
+    # Calculate paid amount based on status (simplified logic)
+    status = item.get('status', 'DRAFT')
+    total_amount = float(item.get('total_amount', 0))
+    paid_amount = total_amount if status == 'PAID' else 0.0
+    remaining_balance = total_amount - paid_amount
+    
+    # Format dates to ISO 8601
+    due_date = item.get('due_date', '')
+    issue_date = item.get('issue_date', item.get('created_at', ''))
+    
+    # Ensure dates are in ISO 8601 format
+    try:
+        if due_date and not due_date.endswith('Z') and 'T' in due_date:
+            due_date = datetime.fromisoformat(due_date.replace('Z', '')).isoformat()
+    except:
+        pass
+        
+    try:
+        if issue_date and not issue_date.endswith('Z') and 'T' in issue_date:
+            issue_date = datetime.fromisoformat(issue_date.replace('Z', '')).isoformat()
+    except:
+        pass
+    
+    # Process line items if they exist
+    line_items = item.get('line_items', [])
+    if line_items:
+        formatted_line_items = []
+        for line_item in line_items:
+            formatted_item = {
+                'description': line_item.get('description', ''),
+                'quantity': float(line_item.get('quantity', 0)),
+                'unit_price': float(line_item.get('unit_price', 0)),
+                'total': float(line_item.get('line_total', line_item.get('total', 0)))
+            }
+            formatted_line_items.append(formatted_item)
+        line_items = formatted_line_items
+    
+    return {
+        'invoice_id': item.get('invoice_id'),
+        'invoice_number': item.get('invoice_number'),
+        'customer_id': item.get('customer_id', 'unknown'),
+        'customer_name': item.get('customer_name'),
+        'customer_email': item.get('customer_email', 'unknown@example.com'),
+        'status': status,
+        'issue_date': issue_date,
+        'due_date': due_date,
+        'line_items': line_items,
+        'subtotal': total_amount,  # For invoices, subtotal typically equals total
+        'total_amount': total_amount,
+        'paid_amount': paid_amount,
+        'remaining_balance': remaining_balance,
+        'created_at': item.get('created_at', issue_date),
+        'updated_at': item.get('updated_at', issue_date),
+        'is_overdue': datetime.fromisoformat(due_date) < datetime.now() and status not in ['PAID', 'CANCELLED'] if due_date else False
+    }
+
 # Domain Value Objects (in same file)
 class InvoiceStatus(Enum):
     DRAFT = "DRAFT"
@@ -1506,46 +1564,44 @@ def handle_get_specific_invoice(invoice_id, invoice_service):
         
         if not invoice:
             print(f"Invoice {invoice_id} not found in database")
-            return {
-                'statusCode': 404,
-                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({
-                    'error': 'Invoice not found',
-                    'invoice_id': invoice_id,
-                    'message': f'No invoice found with ID: {invoice_id}'
-                })
-            }
+            return error_response(
+                message=f'No invoice found with ID: {invoice_id}',
+                status_code=404,
+                data={'invoice_id': invoice_id}
+            )
         
-        return {
-            'statusCode': 200,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({
-                'success': True,
-                'invoice': {
-                    'invoice_id': invoice.invoice_id,
-                    'invoice_number': invoice.invoice_number,
-                    'customer_name': invoice.customer_name,
-                    'customer_email': invoice.customer_email,
-                    'total_amount': float(invoice.total_amount.amount),
-                    'currency': invoice.total_amount.currency,
-                    'status': invoice.status.value,
-                    'issue_date': invoice.issue_date.isoformat(),
-                    'due_date': invoice.due_date.isoformat(),
-                    'is_overdue': invoice.is_overdue,
-                    'line_items': [
-                        {
-                            'description': item.description,
-                            'quantity': float(item.quantity),
-                            'unit_price': float(item.unit_price.amount),
-                            'line_total': float(item.line_total.amount)
-                        } for item in invoice.line_items
-                    ]
-                }
-            }, default=str)
+        # Convert domain object to dict for formatting
+        invoice_data = {
+            'invoice_id': invoice.invoice_id,
+            'invoice_number': invoice.invoice_number,
+            'customer_name': invoice.customer_name,
+            'customer_email': invoice.customer_email,
+            'total_amount': float(invoice.total_amount.amount),
+            'currency': invoice.total_amount.currency,
+            'status': invoice.status.value,
+            'issue_date': invoice.issue_date.isoformat(),
+            'due_date': invoice.due_date.isoformat(),
+            'is_overdue': invoice.is_overdue,
+            'line_items': [
+                {
+                    'description': item.description,
+                    'quantity': float(item.quantity),
+                    'unit_price': float(item.unit_price.amount),
+                    'line_total': float(item.line_total.amount)
+                } for item in invoice.line_items
+            ]
         }
         
+        # Format for frontend compatibility
+        formatted_invoice = format_invoice_for_frontend(invoice_data)
+        
+        return success_response(
+            data=formatted_invoice,
+            message=f"Invoice {invoice_id} retrieved successfully"
+        )
+        
     except Exception as e:
-        return error_response(400, f"Failed to get invoice: {str(e)}")
+        return error_response(f"Failed to get invoice: {str(e)}", 500)
 
 def handle_get_all_invoices(table):
     """Handle getting all invoices"""
@@ -1555,24 +1611,14 @@ def handle_get_all_invoices(table):
             ExpressionAttributeValues={':sk': 'METADATA'}
         )
         
-        invoices = []
+        formatted_invoices = []
         for item in response.get('Items', []):
-            invoices.append({
-                'invoice_id': item.get('invoice_id'),
-                'invoice_number': item.get('invoice_number'),
-                'customer_name': item.get('customer_name'),
-                'total_amount': float(item.get('total_amount', 0)),
-                'status': item.get('status'),
-                'due_date': item.get('due_date'),
-                'is_overdue': datetime.fromisoformat(item.get('due_date')) < datetime.now() and item.get('status') not in ['PAID', 'CANCELLED']
-            })
+            formatted_invoice = format_invoice_for_frontend(item)
+            formatted_invoices.append(formatted_invoice)
         
         return success_response(
-            data={
-                'invoices': invoices,
-                'count': len(invoices)
-            },
-            message=f"Retrieved {len(invoices)} invoices successfully"
+            data=formatted_invoices,
+            message=f"Retrieved {len(formatted_invoices)} invoices successfully"
         )
         
     except Exception as e:

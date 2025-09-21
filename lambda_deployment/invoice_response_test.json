@@ -1,0 +1,546 @@
+﻿{
+    "success":  true,
+    "data":  [
+                 {
+                     "invoice_id":  "698564e7-4cb8-43a0-99e3-9b69973cd6d9",
+                     "invoice_number":  "INV-2025-366C47",
+                     "customer_id":  "unknown",
+                     "customer_name":  "Date Test",
+                     "customer_email":  "unknown@example.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-02-01T10:00:00",
+                     "due_date":  "2025-01-01T10:00:00",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  100.0,
+                     "total_amount":  100.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  100.0,
+                     "created_at":  "2025-09-20T15:08:01.061366",
+                     "updated_at":  "2025-02-01T10:00:00",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "test002",
+                     "invoice_number":  "INV-2024-002",
+                     "customer_id":  "CUST002",
+                     "customer_name":  "TechStart Inc",
+                     "customer_email":  "finance@techstart.com",
+                     "status":  "OVERDUE",
+                     "issue_date":  "2024-09-05T00:00:00",
+                     "due_date":  "2024-08-20T00:00:00",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  2500.0,
+                     "total_amount":  2500.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  2500.0,
+                     "created_at":  "2024-09-05T00:00:00",
+                     "updated_at":  "2024-09-05T00:00:00",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "cfc68d28-5262-4761-9577-8a6111ef9e80",
+                     "invoice_number":  "INV-2024-002",
+                     "customer_id":  "CUST002",
+                     "customer_name":  "TechStart Inc",
+                     "customer_email":  "finance@techstart.com",
+                     "status":  "SENT",
+                     "issue_date":  "2025-08-22T17:48:00.068684",
+                     "due_date":  "2025-09-21T17:48:00.068684",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  2500.0,
+                     "total_amount":  2500.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  2500.0,
+                     "created_at":  "2025-09-20T17:48:00.068708",
+                     "updated_at":  "2025-09-20T17:48:00.068710",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "3763f89e-a838-4a70-8605-3c8d8e46dde8",
+                     "invoice_number":  "INV-2024-004",
+                     "customer_id":  "CUST001",
+                     "customer_name":  "Acme Corporation",
+                     "customer_email":  "billing@acme.com",
+                     "status":  "OVERDUE",
+                     "issue_date":  "2025-08-24T17:49:42.295511",
+                     "due_date":  "2025-09-23T17:49:42.295511",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  4800.0,
+                     "total_amount":  4800.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  4800.0,
+                     "created_at":  "2025-09-20T17:49:42.295534",
+                     "updated_at":  "2025-09-20T17:49:42.295537",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "a3d23822-5681-4146-93bf-bbb8d54ade1a",
+                     "invoice_number":  "INV-2025-F2A934",
+                     "customer_id":  "unknown",
+                     "customer_name":  "Overdue Test",
+                     "customer_email":  "unknown@example.com",
+                     "status":  "OVERDUE",
+                     "issue_date":  "2025-01-01T10:00:00",
+                     "due_date":  "2025-01-15T10:00:00",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  100.0,
+                     "total_amount":  100.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  100.0,
+                     "created_at":  "2025-09-20T15:03:58.699553",
+                     "updated_at":  "2025-01-01T10:00:00",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "bd70fbc3-2e40-4f9f-a856-827f8be2b9b9",
+                     "invoice_number":  "INV-2025-F47922",
+                     "customer_id":  "unknown",
+                     "customer_name":  "Unknown",
+                     "customer_email":  "unknown@example.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-09-20T13:37:53.133978",
+                     "due_date":  "2025-09-20T13:37:53.133988",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  0.0,
+                     "total_amount":  0.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  0.0,
+                     "created_at":  "2025-09-20T13:37:53.134027",
+                     "updated_at":  "2025-09-20T13:37:53.133978",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "fcea4028-8e8f-475b-86ee-6c6945df80ea",
+                     "invoice_number":  "INV-2025-6190B9",
+                     "customer_id":  "TEST-001",
+                     "customer_name":  "Test Customer",
+                     "customer_email":  "test@example.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-09-20T16:44:04.808265",
+                     "due_date":  "2024-12-31T00:00:00",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  100.0,
+                     "total_amount":  100.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  100.0,
+                     "created_at":  "2025-09-20T16:44:04.808300",
+                     "updated_at":  "2025-09-20T16:44:04.808265",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "705bb4fa-eaeb-4452-8014-fbcc62f05f9f",
+                     "invoice_number":  "INV-2024-004",
+                     "customer_id":  "CUST001",
+                     "customer_name":  "Acme Corporation",
+                     "customer_email":  "billing@acme.com",
+                     "status":  "OVERDUE",
+                     "issue_date":  "2025-08-24T17:49:35.295616",
+                     "due_date":  "2025-09-23T17:49:35.295616",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  4800.0,
+                     "total_amount":  4800.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  4800.0,
+                     "created_at":  "2025-09-20T17:49:35.295640",
+                     "updated_at":  "2025-09-20T17:49:35.295642",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "4de901ce-e220-4044-b2a1-6683d533a54f",
+                     "invoice_number":  "INV-2024-007",
+                     "customer_id":  "CUST001",
+                     "customer_name":  "Acme Corporation",
+                     "customer_email":  "billing@acme.com",
+                     "status":  "PAID",
+                     "issue_date":  "2025-08-27T17:49:42.535519",
+                     "due_date":  "2025-09-26T17:49:42.535519",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  3200.0,
+                     "total_amount":  3200.0,
+                     "paid_amount":  3200.0,
+                     "remaining_balance":  0.0,
+                     "created_at":  "2025-09-20T17:49:42.535543",
+                     "updated_at":  "2025-09-20T17:49:42.535545",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "99200d7c-6625-4a18-ad9d-a97e49a42153",
+                     "invoice_number":  "INV-2025-D3EF60",
+                     "customer_id":  "TEST-001",
+                     "customer_name":  "Test Customer",
+                     "customer_email":  "test@example.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-09-20T16:43:41.788071",
+                     "due_date":  "2024-12-31T00:00:00",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  100.0,
+                     "total_amount":  100.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  100.0,
+                     "created_at":  "2025-09-20T16:43:41.788106",
+                     "updated_at":  "2025-09-20T16:43:41.788071",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "2aa3caf7-b0e8-445d-98d0-a7d1f5422311",
+                     "invoice_number":  "INV-2025-AD8472",
+                     "customer_id":  "unknown",
+                     "customer_name":  "Unknown",
+                     "customer_email":  "unknown@example.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-09-20T14:37:40.051118",
+                     "due_date":  "2025-09-20T14:37:40.051126",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  0.0,
+                     "total_amount":  0.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  0.0,
+                     "created_at":  "2025-09-20T14:37:40.051155",
+                     "updated_at":  "2025-09-20T14:37:40.051118",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "30ca2047-b030-49e4-a16b-a32a08a03418",
+                     "invoice_number":  "INV-2024-001",
+                     "customer_id":  "CUST001",
+                     "customer_name":  "Acme Corporation",
+                     "customer_email":  "billing@acme.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-08-21T17:49:34.795590",
+                     "due_date":  "2025-09-20T17:49:34.795590",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  1500.0,
+                     "total_amount":  1500.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  1500.0,
+                     "created_at":  "2025-09-20T17:49:34.795624",
+                     "updated_at":  "2025-09-20T17:49:34.795626",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "f2c94433-fe2d-47f0-ba28-4dc583fbfe70",
+                     "invoice_number":  "INV-2025-82457D",
+                     "customer_id":  "CUST-6969",
+                     "customer_name":  "Jason Wong",
+                     "customer_email":  "jasonwong@test.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-01-20T10:00:00",
+                     "due_date":  "2025-02-20T10:00:00",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  2000.0,
+                     "total_amount":  2000.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  2000.0,
+                     "created_at":  "2025-09-20T13:15:27.932388",
+                     "updated_at":  "2025-01-20T10:00:00",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "fe7d5900-9e90-424b-8fa5-e273bc14e8ee",
+                     "invoice_number":  "INV-2024-005",
+                     "customer_id":  "CUST002",
+                     "customer_name":  "TechStart Inc",
+                     "customer_email":  "finance@techstart.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-08-25T17:49:42.375496",
+                     "due_date":  "2025-09-24T17:49:42.375496",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  1500.0,
+                     "total_amount":  1500.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  1500.0,
+                     "created_at":  "2025-09-20T17:49:42.375521",
+                     "updated_at":  "2025-09-20T17:49:42.375523",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "0582d91c-475f-4d21-9235-0c9cbd036948",
+                     "invoice_number":  "INV-2025-DC4FBE",
+                     "customer_id":  "unknown",
+                     "customer_name":  "Multi Item Test",
+                     "customer_email":  "unknown@example.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-09-20T15:06:04.819808",
+                     "due_date":  "2025-09-20T15:06:04.819817",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  425.0,
+                     "total_amount":  425.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  425.0,
+                     "created_at":  "2025-09-20T15:06:04.819873",
+                     "updated_at":  "2025-09-20T15:06:04.819808",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "6fd7adb9-73aa-4983-b7de-a06bad388860",
+                     "invoice_number":  "INV-2024-002",
+                     "customer_id":  "CUST002",
+                     "customer_name":  "TechStart Inc",
+                     "customer_email":  "finance@techstart.com",
+                     "status":  "SENT",
+                     "issue_date":  "2025-08-22T17:49:42.115516",
+                     "due_date":  "2025-09-21T17:49:42.115516",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  2500.0,
+                     "total_amount":  2500.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  2500.0,
+                     "created_at":  "2025-09-20T17:49:42.115539",
+                     "updated_at":  "2025-09-20T17:49:42.115541",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "ac9b59a6-4b48-45a0-a1e6-424789404dc8",
+                     "invoice_number":  "INV-2025-659E81",
+                     "customer_id":  "TEST-001",
+                     "customer_name":  "Test Customer",
+                     "customer_email":  "test@example.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-09-20T16:44:37.108121",
+                     "due_date":  "2024-12-31T00:00:00",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  100.0,
+                     "total_amount":  100.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  100.0,
+                     "created_at":  "2025-09-20T16:44:37.108154",
+                     "updated_at":  "2025-09-20T16:44:37.108121",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "873b9e8b-b1e7-4e40-855e-5908813ed379",
+                     "invoice_number":  "INV-2025-543BDE",
+                     "customer_id":  "unknown",
+                     "customer_name":  "Unknown",
+                     "customer_email":  "unknown@example.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-09-20T14:38:11.921424",
+                     "due_date":  "2025-09-20T14:38:11.921434",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  0.0,
+                     "total_amount":  0.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  0.0,
+                     "created_at":  "2025-09-20T14:38:11.921487",
+                     "updated_at":  "2025-09-20T14:38:11.921424",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "025583b0-f0c7-46ab-b157-1dfb4dc7b3a6",
+                     "invoice_number":  "INV-2024-003",
+                     "customer_id":  "CUST003",
+                     "customer_name":  "Global Solutions",
+                     "customer_email":  "accounts@globalsol.com",
+                     "status":  "PAID",
+                     "issue_date":  "2025-08-23T17:46:15.610347",
+                     "due_date":  "2025-09-22T17:46:15.610347",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  3200.0,
+                     "total_amount":  3200.0,
+                     "paid_amount":  3200.0,
+                     "remaining_balance":  0.0,
+                     "created_at":  "2025-09-20T17:46:15.610371",
+                     "updated_at":  "2025-09-20T17:46:15.610372",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "b4ff6de1-b052-47b5-b841-6d983de403a3",
+                     "invoice_number":  "INV-2024-012",
+                     "customer_id":  "CUST003",
+                     "customer_name":  "Global Solutions",
+                     "customer_email":  "accounts@globalsol.com",
+                     "status":  "OVERDUE",
+                     "issue_date":  "2025-09-01T17:49:42.975584",
+                     "due_date":  "2025-10-01T17:49:42.975584",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  4800.0,
+                     "total_amount":  4800.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  4800.0,
+                     "created_at":  "2025-09-20T17:49:42.975616",
+                     "updated_at":  "2025-09-20T17:49:42.975619",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "5901b11a-7d45-4de8-8c52-12252759d632",
+                     "invoice_number":  "INV-2025-6BB544",
+                     "customer_id":  "CUST-LARGE-001",
+                     "customer_name":  "Large Invoice Customer with Very Long Name That Exceeds Normal Length Expectations for Testing Purposes",
+                     "customer_email":  "large.test.customer.with.very.long.email.address@example-domain-name.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-09-20T15:14:50.463284",
+                     "due_date":  "2025-09-20T15:14:50.463297",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  447495.5,
+                     "total_amount":  447495.5,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  447495.5,
+                     "created_at":  "2025-09-20T15:14:50.463360",
+                     "updated_at":  "2025-09-20T15:14:50.463284",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "caa81fd4-3001-4fde-8db2-43a86d372e89",
+                     "invoice_number":  "INV-2024-002",
+                     "customer_id":  "CUST002",
+                     "customer_name":  "TechStart Inc",
+                     "customer_email":  "finance@techstart.com",
+                     "status":  "SENT",
+                     "issue_date":  "2025-08-22T17:46:15.555425",
+                     "due_date":  "2025-09-21T17:46:15.555425",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  2500.0,
+                     "total_amount":  2500.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  2500.0,
+                     "created_at":  "2025-09-20T17:46:15.555450",
+                     "updated_at":  "2025-09-20T17:46:15.555451",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "ef85a92d-ceab-47e1-8471-70e97c27d331",
+                     "invoice_number":  "INV-2025-FD9360",
+                     "customer_id":  "unknown",
+                     "customer_name":  "Unknown",
+                     "customer_email":  "unknown@example.com",
+                     "status":  "DRAFT",
+                     "issue_date":  "2025-09-20T14:39:28.275870",
+                     "due_date":  "2025-09-20T14:39:28.275882",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  0.0,
+                     "total_amount":  0.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  0.0,
+                     "created_at":  "2025-09-20T14:39:28.275944",
+                     "updated_at":  "2025-09-20T14:39:28.275870",
+                     "is_overdue":  true
+                 },
+                 {
+                     "invoice_id":  "f2ab8014-94d2-4e78-ae23-ec977e4140d9",
+                     "invoice_number":  "INV-2024-003",
+                     "customer_id":  "CUST003",
+                     "customer_name":  "Global Solutions",
+                     "customer_email":  "accounts@globalsol.com",
+                     "status":  "PAID",
+                     "issue_date":  "2025-08-23T17:48:00.123139",
+                     "due_date":  "2025-09-22T17:48:00.123139",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  3200.0,
+                     "total_amount":  3200.0,
+                     "paid_amount":  3200.0,
+                     "remaining_balance":  0.0,
+                     "created_at":  "2025-09-20T17:48:00.123163",
+                     "updated_at":  "2025-09-20T17:48:00.123165",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "63ec9b64-92b9-470e-aa91-85a065c9db4d",
+                     "invoice_number":  "INV-2024-011",
+                     "customer_id":  "CUST002",
+                     "customer_name":  "TechStart Inc",
+                     "customer_email":  "finance@techstart.com",
+                     "status":  "PAID",
+                     "issue_date":  "2025-08-31T17:49:42.875514",
+                     "due_date":  "2025-09-30T17:49:42.875514",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  3200.0,
+                     "total_amount":  3200.0,
+                     "paid_amount":  3200.0,
+                     "remaining_balance":  0.0,
+                     "created_at":  "2025-09-20T17:49:42.875538",
+                     "updated_at":  "2025-09-20T17:49:42.875540",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "test003",
+                     "invoice_number":  "INV-2024-003",
+                     "customer_id":  "CUST003",
+                     "customer_name":  "Global Solutions",
+                     "customer_email":  "accounts@globalsol.com",
+                     "status":  "PAID",
+                     "issue_date":  "2024-08-15T00:00:00",
+                     "due_date":  "2024-09-15T00:00:00",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  3200.0,
+                     "total_amount":  3200.0,
+                     "paid_amount":  3200.0,
+                     "remaining_balance":  0.0,
+                     "created_at":  "2024-08-15T00:00:00",
+                     "updated_at":  "2024-08-15T00:00:00",
+                     "is_overdue":  false
+                 },
+                 {
+                     "invoice_id":  "test001",
+                     "invoice_number":  "INV-2024-001",
+                     "customer_id":  "CUST001",
+                     "customer_name":  "Acme Corporation",
+                     "customer_email":  "billing@acme.com",
+                     "status":  "SENT",
+                     "issue_date":  "2024-09-01T00:00:00",
+                     "due_date":  "2024-10-01T00:00:00",
+                     "line_items":  [
+
+                                    ],
+                     "subtotal":  1500.0,
+                     "total_amount":  1500.0,
+                     "paid_amount":  0.0,
+                     "remaining_balance":  1500.0,
+                     "created_at":  "2024-09-01T00:00:00",
+                     "updated_at":  "2024-09-01T00:00:00",
+                     "is_overdue":  true
+                 }
+             ],
+    "message":  "Retrieved 27 invoices successfully"
+}
