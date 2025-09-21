@@ -1,0 +1,5 @@
+{
+  "httpMethod": "POST",
+  "path": "/ai/chat",
+  "body": "{\"message\":\"How many overdue invoices do we have?\",\"conversationId\":\"test_123\"}"
+}

@@ -13,14 +13,16 @@ from typing import List, Optional
 # Initialize AWS clients
 ses_client = boto3.client('ses', region_name=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
 bedrock_agent_runtime = boto3.client('bedrock-agent-runtime', region_name='us-east-1')
+lambda_client = boto3.client('lambda', region_name='us-east-1')
 
 # Bedrock Agent Configuration
 AGENT_ID = 'VSKNCYS2GY'
-AGENT_ALIAS_ID = 'TSTALIASID'
+AGENT_ALIAS_ID = 'TSTALIASID'  # Use TSTALIASID for working draft
 
-def invoke_payment_intelligence_agent(message, session_id=None):
+def invoke_payment_intelligence_agent(message, session_id=None, invoice_service=None):
     """
-    Invoke the PaymentIntelligenceAgent for real AI responses
+    Invoke the PaymentIntelligenceAgent with invoice context data included
+    This prevents the need for external HTTP calls that cause CORS issues
     """
     try:
         import time
@@ -28,13 +30,54 @@ def invoke_payment_intelligence_agent(message, session_id=None):
         if not session_id:
             session_id = f"session_{int(time.time())}"
         
-        print(f"Invoking Bedrock Agent with message: {message[:100]}...")
+        # Get invoice context data to include in the prompt
+        context_data = ""
+        if invoice_service:
+            try:
+                # Get summary invoice data
+                invoices = invoice_service._get_all_invoices()
+                if invoices and len(invoices) > 0:
+                    total_invoices = len(invoices)
+                    total_amount = sum(float(inv.get('total_amount', 0)) for inv in invoices)
+                    paid_invoices = [inv for inv in invoices if inv.get('status') == 'PAID']
+                    overdue_invoices = [inv for inv in invoices if inv.get('status') == 'OVERDUE']
+                    pending_invoices = [inv for inv in invoices if inv.get('status') in ['SENT', 'DRAFT']]
+                    
+                    context_data = f"""
+CURRENT INVOICE DATA CONTEXT:
+- Total Invoices: {total_invoices}
+- Total Amount: ${total_amount:,.2f}
+- Paid Invoices: {len(paid_invoices)}
+- Overdue Invoices: {len(overdue_invoices)}
+- Pending Invoices: {len(pending_invoices)}
+
+Recent Invoices Summary:
+"""
+                    # Add sample invoice details (limit to avoid token limits)
+                    for i, inv in enumerate(invoices[:10]):
+                        context_data += f"- Invoice {inv.get('invoice_number', 'N/A')}: ${float(inv.get('total_amount', 0)):,.2f} ({inv.get('status', 'Unknown')}) - Customer: {inv.get('customer_name', 'Unknown')}\n"
+                    
+                    if len(invoices) > 10:
+                        context_data += f"... and {len(invoices) - 10} more invoices\n"
+                        
+            except Exception as e:
+                print(f"Error getting invoice context: {e}")
+                context_data = "Invoice data is available but could not be loaded for context."
+        
+        # Enhanced message with context
+        enhanced_message = f"""{context_data}
+
+USER QUESTION: {message}
+
+Please provide intelligent insights based on the above invoice data context. If the user is asking about cash flow, overdue invoices, customer analysis, or payment patterns, use the provided data context to give specific answers."""
+        
+        print(f"Invoking Bedrock Agent with enhanced message: {enhanced_message[:200]}...")
         
         response = bedrock_agent_runtime.invoke_agent(
             agentId=AGENT_ID,
             agentAliasId=AGENT_ALIAS_ID,
             sessionId=session_id,
-            inputText=message
+            inputText=enhanced_message
         )
         
         # Parse the streaming response
@@ -1032,6 +1075,11 @@ class BedrockAgentHandler:
     def handle_agent_request(self, event, context):
         """Handle Bedrock Agent requests for DynamoDB operations and email sending"""
         try:
+            print(f"=== BEDROCK AGENT REQUEST DEBUG ===")
+            print(f"Full event: {json.dumps(event, indent=2)}")
+            print(f"Event keys: {list(event.keys())}")
+            print(f"=== END BEDROCK AGENT DEBUG ===")
+            
             # Extract agent request details
             function = event.get('function', '')
             parameters = event.get('parameters', [])
@@ -1043,16 +1091,19 @@ class BedrockAgentHandler:
             
             print(f"Bedrock Agent Function: {function}, Parameters: {params}")
             
-            # Route to appropriate function
-            if function == 'getOverdueInvoices':
+            # Route to appropriate function (handle both camelCase, snake_case, and full action group names)
+            if function == 'getOverdueInvoices' or function == 'get_overdue_invoices' or function == 'GET__InvoiceManagement__get_overdue_invoices':
                 result = self._get_overdue_invoices()
-            elif function == 'getInvoiceDetails':
-                result = self._get_invoice_details(params.get('invoiceId'))
-            elif function == 'getCustomerInvoices':
-                result = self._get_customer_invoices(params.get('customerName'))
-            elif function == 'updateInvoiceStatus':
-                result = self._update_invoice_status(params.get('invoiceId'), params.get('status'))
-            elif function == 'getPaymentSummary':
+            elif function == 'getInvoiceDetails' or function == 'get_invoice_details' or function == 'GET__InvoiceManagement__get_invoice_details':
+                result = self._get_invoice_details(params.get('invoiceId') or params.get('invoice_id'))
+            elif function == 'getCustomerInvoices' or function == 'get_customer_invoices' or function == 'GET__InvoiceManagement__get_customer_invoices':
+                result = self._get_customer_invoices(params.get('customerName') or params.get('customer_name'))
+            elif function == 'updateInvoiceStatus' or function == 'update_invoice_status' or function == 'POST__InvoiceManagement__update_invoice_status':
+                result = self._update_invoice_status(
+                    params.get('invoiceId') or params.get('invoice_id'), 
+                    params.get('status')
+                )
+            elif function == 'getPaymentSummary' or function == 'get_payment_summary' or function == 'GET__InvoiceManagement__get_payment_summary':
                 result = self._get_payment_summary()
             elif function == 'generatePaymentEmail':
                 result = self._generate_payment_email(params)
@@ -1063,34 +1114,44 @@ class BedrockAgentHandler:
             else:
                 result = {"error": f"Unknown function: {function}"}
             
-            # Return in Bedrock Agent format
+            # Return in Bedrock Agent format (correct structure for agent action groups)
+            response_body = json.dumps(result, default=self._decimal_default)
             return {
+                "messageVersion": "1.0",
                 "response": {
-                    "actionGroup": event.get('actionGroup', ''),
-                    "function": function,
-                    "functionResponse": {
-                        "responseBody": {
-                            "TEXT": {
-                                "body": json.dumps(result, default=self._decimal_default)
-                            }
+                    "actionGroup": event.get('actionGroup', 'InvoiceManagement'),
+                    "apiPath": event.get('apiPath', f"/{function.replace('GET__InvoiceManagement__', '').replace('POST__InvoiceManagement__', '')}"),
+                    "httpMethod": event.get('httpMethod', 'GET'),
+                    "httpStatusCode": 200,
+                    "responseBody": {
+                        "application/json": {
+                            "body": response_body
                         }
-                    }
+                    },
+                    "sessionAttributes": {},
+                    "promptSessionAttributes": {}
                 }
             }
             
         except Exception as e:
             print(f"Bedrock Agent Error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            error_response = json.dumps({"error": str(e)})
             return {
+                "messageVersion": "1.0",
                 "response": {
-                    "actionGroup": event.get('actionGroup', ''),
-                    "function": function,
-                    "functionResponse": {
-                        "responseBody": {
-                            "TEXT": {
-                                "body": json.dumps({"error": str(e)})
-                            }
+                    "actionGroup": event.get('actionGroup', 'InvoiceManagement'),
+                    "apiPath": event.get('apiPath', '/error'),
+                    "httpMethod": event.get('httpMethod', 'GET'),
+                    "httpStatusCode": 500,
+                    "responseBody": {
+                        "application/json": {
+                            "body": error_response
                         }
-                    }
+                    },
+                    "sessionAttributes": {},
+                    "promptSessionAttributes": {}
                 }
             }
     
@@ -1383,6 +1444,31 @@ class BedrockAgentHandler:
         except Exception as e:
             return {"error": f"Failed to analyze customer risk: {str(e)}"}
 
+def invoke_payment_intelligence_lambda(function_name, payload):
+    """
+    Directly invoke the payment-intelligence-dynamodb Lambda function
+    This bypasses HTTP/CORS issues by calling Lambda directly via AWS SDK
+    """
+    try:
+        print(f"Invoking Lambda function: {function_name}")
+        print(f"Payload: {json.dumps(payload, default=str)}")
+        
+        response = lambda_client.invoke(
+            FunctionName=function_name,
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        # Parse the response
+        response_payload = json.loads(response['Payload'].read())
+        print(f"Lambda response: {response_payload}")
+        
+        return response_payload
+        
+    except Exception as e:
+        print(f"Error invoking Lambda {function_name}: {str(e)}")
+        return {"error": f"Failed to invoke {function_name}: {str(e)}"}
+
 # Simple AI Chatbot Handler
 def handle_ai_chatbot(event, invoice_service, customer_service):
     """Handle AI chatbot requests - enhanced with Bedrock Agent for real AI responses"""
@@ -1395,8 +1481,8 @@ def handle_ai_chatbot(event, invoice_service, customer_service):
         print(f"AI Chatbot received message: {message}")
         print(f"Session ID: {session_id}")
         
-        # First, try the real Bedrock Agent
-        agent_result = invoke_payment_intelligence_agent(message, session_id)
+        # First, try the real Bedrock Agent with invoice context
+        agent_result = invoke_payment_intelligence_agent(message, session_id, invoice_service)
         
         print(f"Agent result: {agent_result}")
         
@@ -1532,7 +1618,22 @@ def lambda_handler(event, context):
         print(f"Event type: {type(event)}")
         print(f"=== END DEBUG ===")
         
-        # Initialize services
+        # Check if this is a Bedrock Agent action group request
+        if 'actionGroup' in event and 'function' in event:
+            print("DETECTED: Bedrock Agent Action Group Request")
+            print(f"Action Group: {event.get('actionGroup')}")
+            print(f"Function: {event.get('function')}")
+            
+            # Initialize services for Bedrock Agent
+            dynamodb = boto3.resource('dynamodb')
+            table_name = os.environ.get('DYNAMODB_TABLE_NAME', 'InvoiceManagementTable')
+            table = dynamodb.Table(table_name)
+            
+            # Handle with BedrockAgentHandler
+            bedrock_handler = BedrockAgentHandler(table, ses_client)
+            return bedrock_handler.handle_agent_request(event, context)
+        
+        # Initialize services for regular API Gateway requests
         dynamodb = boto3.resource('dynamodb')
         table_name = os.environ.get('DYNAMODB_TABLE_NAME', 'InvoiceManagementTable')
         table = dynamodb.Table(table_name)

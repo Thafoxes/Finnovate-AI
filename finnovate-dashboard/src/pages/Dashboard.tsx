@@ -1,7 +1,6 @@
 import React from 'react';
-import { Box, Grid, Paper, Typography, Card, CardContent } from '@mui/material';
-import { Receipt, AttachMoney, Schedule, TrendingUp, Add } from '@mui/icons-material';
-import { Button } from '@mui/material';
+import { Box, Grid, Paper, Typography, Card, CardContent, Button } from '@mui/material';
+import { Receipt, AttachMoney, Schedule, TrendingUp } from '@mui/icons-material';
 import { useInvoices } from '../hooks/useInvoices';
 import { useRawDataCalculations } from '../hooks/useRawDataCalculations';
 import AmountDisplay from '../components/AmountDisplay';
@@ -85,19 +84,7 @@ const Dashboard: React.FC = () => {
     </Card>
   );
 
-  const generateTestData = async () => {
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/test-data`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (response.ok) {
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error('Failed to generate test data:', error);
-    }
-  };
+
 
   return (
     <Box>
@@ -105,16 +92,6 @@ const Dashboard: React.FC = () => {
         <Typography variant="h4">
           Dashboard
         </Typography>
-        {stats.total === 0 && (
-          <Button 
-            variant="contained" 
-            startIcon={<Add />} 
-            onClick={generateTestData}
-            color="primary"
-          >
-            Generate Test Data
-          </Button>
-        )}
       </Box>
 
       <Grid container spacing={3} mb={4}>
@@ -234,7 +211,7 @@ const Dashboard: React.FC = () => {
             No Invoice Data Available
           </Typography>
           <Typography color="textSecondary" mb={2}>
-            Click "Generate Test Data" to create sample invoices for the dashboard.
+            Create your first invoice to see analytics and insights here.
           </Typography>
         </Paper>
       )}

@@ -156,7 +156,7 @@ const AIPaymentChatbot: React.FC = () => {
     console.log('Request body:', requestBody);
     
     try {
-      const response = await fetch(`${apiBaseUrl}/test-data`, {
+      const response = await fetch(`${apiBaseUrl}/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
