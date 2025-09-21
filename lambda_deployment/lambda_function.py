@@ -12,6 +12,71 @@ from typing import List, Optional
 
 # Initialize AWS clients
 ses_client = boto3.client('ses', region_name=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
+bedrock_agent_runtime = boto3.client('bedrock-agent-runtime', region_name='us-east-1')
+
+# Bedrock Agent Configuration
+AGENT_ID = 'VSKNCYS2GY'
+AGENT_ALIAS_ID = 'TSTALIASID'
+
+def invoke_payment_intelligence_agent(message, session_id=None):
+    """
+    Invoke the PaymentIntelligenceAgent for real AI responses
+    """
+    try:
+        import time
+        
+        if not session_id:
+            session_id = f"session_{int(time.time())}"
+        
+        print(f"Invoking Bedrock Agent with message: {message[:100]}...")
+        
+        response = bedrock_agent_runtime.invoke_agent(
+            agentId=AGENT_ID,
+            agentAliasId=AGENT_ALIAS_ID,
+            sessionId=session_id,
+            inputText=message
+        )
+        
+        # Parse the streaming response
+        agent_response = ""
+        completion = response.get('completion', [])
+        
+        for event in completion:
+            if 'chunk' in event:
+                chunk = event['chunk']
+                if 'bytes' in chunk:
+                    agent_response += chunk['bytes'].decode('utf-8')
+        
+        print(f"Agent response received: {len(agent_response)} characters")
+        
+        return {
+            'success': True,
+            'response': agent_response.strip(),
+            'session_id': session_id,
+            'source': 'bedrock_agent'
+        }
+        
+    except Exception as e:
+        print(f"Bedrock Agent error: {str(e)}")
+        
+        # Return None to trigger fallback
+        return None
+
+def extract_suggested_actions(response_text):
+    """Extract suggested actions from AI response"""
+    actions = []
+    response_lower = response_text.lower()
+    
+    if 'analyze' in response_lower or 'analysis' in response_lower:
+        actions.append('Analyze customer payment patterns')
+    if 'email' in response_lower or 'reminder' in response_lower:
+        actions.append('Draft reminder emails')
+    if 'report' in response_lower or 'summary' in response_lower:
+        actions.append('Generate payment summary')
+    if 'overdue' in response_lower:
+        actions.append('View overdue invoices')
+    
+    return actions[:3]  # Limit to 3 actions
 
 # Standardized API Response Helpers
 def success_response(data=None, message=None, status_code=200):
@@ -30,9 +95,11 @@ def success_response(data=None, message=None, status_code=200):
         'statusCode': status_code,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+            'Access-Control-Allow-Origin': 'http://localhost:3000',
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,invoice-id',
+            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Max-Age': '86400'
         },
         'body': json.dumps(response_body, default=str)
     }
@@ -51,9 +118,11 @@ def error_response(message, status_code=400, data=None):
         'statusCode': status_code,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+            'Access-Control-Allow-Origin': 'http://localhost:3000',
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,invoice-id',
+            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Max-Age': '86400'
         },
         'body': json.dumps(response_body, default=str)
     }
@@ -1316,23 +1385,37 @@ class BedrockAgentHandler:
 
 # Simple AI Chatbot Handler
 def handle_ai_chatbot(event, invoice_service, customer_service):
-    """Handle AI chatbot requests - simple implementation for hackathon MVP"""
+    """Handle AI chatbot requests - enhanced with Bedrock Agent for real AI responses"""
     try:
         body = json.loads(event.get('body', '{}'))
-        message = body.get('message', '').lower()
+        message = body.get('message', '')
+        session_id = body.get('session_id')
         user_id = body.get('user_id', 'anonymous')
         
         print(f"AI Chatbot received message: {message}")
         
-        # Simple keyword-based responses for MVP
+        # First, try the real Bedrock Agent
+        agent_result = invoke_payment_intelligence_agent(message, session_id)
+        
+        if agent_result and agent_result['success']:
+            # Return the real AI response
+            return success_response({
+                'response': agent_result['response'],
+                'session_id': agent_result['session_id'],
+                'source': 'bedrock_agent',
+                'actions': extract_suggested_actions(agent_result['response'])
+            })
+        
+        # Fallback to original keyword-based responses
+        message_lower = message.lower()
         response_text = ""
         actions = []
         
-        if 'hello' in message or 'hi' in message:
+        if 'hello' in message_lower or 'hi' in message_lower:
             response_text = "Hello! I'm your AI payment assistant. I can help you with invoices, payments, and customer information. What would you like to know?"
         
-        elif 'invoice' in message:
-            if 'overdue' in message:
+        elif 'invoice' in message_lower:
+            if 'overdue' in message_lower:
                 # Get overdue invoices
                 try:
                     response = invoice_service.table.scan(
@@ -1348,7 +1431,7 @@ def handle_ai_chatbot(event, invoice_service, customer_service):
                 except:
                     response_text = "I'm having trouble accessing overdue invoice data right now. Please try again."
             
-            elif 'total' in message or 'count' in message:
+            elif 'total' in message_lower or 'count' in message_lower:
                 # Get total invoice count
                 try:
                     response = invoice_service.table.scan(
@@ -1367,8 +1450,8 @@ def handle_ai_chatbot(event, invoice_service, customer_service):
                 response_text = "I can help you with invoices! I can show you overdue invoices, total invoice counts, or help create new ones. What specifically would you like to know?"
                 actions = ["Show Overdue Invoices", "Show All Invoices", "Create Invoice"]
         
-        elif 'customer' in message:
-            if 'risk' in message:
+        elif 'customer' in message_lower:
+            if 'risk' in message_lower:
                 try:
                     customers = customer_service.get_all_customers()
                     high_risk = [c for c in customers if c.get('risk_score', 0) > 70]
@@ -1438,7 +1521,11 @@ def lambda_handler(event, context):
     """Fixed Lambda handler with proper routing"""
     
     try:
-        print(f"Received event: {json.dumps(event)}")
+        print(f"=== LAMBDA HANDLER DEBUG ===")
+        print(f"Raw event: {json.dumps(event)}")
+        print(f"Event keys: {list(event.keys()) if event else 'Event is None/Empty'}")
+        print(f"Event type: {type(event)}")
+        print(f"=== END DEBUG ===")
         
         # Initialize services
         dynamodb = boto3.resource('dynamodb')
@@ -1474,9 +1561,11 @@ def lambda_handler(event, context):
             return {
                 'statusCode': 200,
                 'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,invoice-id',
-                    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+                    'Access-Control-Allow-Origin': 'http://localhost:3000',
+                    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,invoice-id',
+                    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+                    'Access-Control-Allow-Credentials': 'true',
+                    'Access-Control-Max-Age': '86400'
                 },
                 'body': ''
             }
@@ -1495,6 +1584,29 @@ def lambda_handler(event, context):
             else:
                 return handle_get_all_customers(customer_service, query_params)
         elif http_method == 'POST' and ('test-data' in path or 'test_data' in path):
+            # Check if this is an AI conversation request
+            print(f"DEBUG: test-data endpoint hit, body: {event.get('body', 'NO BODY')}")
+            try:
+                body = json.loads(event.get('body', '{}'))
+                print(f"DEBUG: Parsed body: {body}")
+                print(f"DEBUG: Body keys: {list(body.keys()) if body else 'No keys'}")
+                
+                if 'message' in body and ('conversationId' in body or 'session_id' in body):
+                    # This is an AI conversation request, handle it as such
+                    print("DEBUG: AI conversation detected in test-data endpoint (with conversationId)")
+                    return handle_ai_chatbot(event, invoice_service, customer_service)
+                elif 'message' in body:
+                    # Also treat any request with a 'message' field as AI
+                    print("DEBUG: Message field detected, treating as AI conversation")
+                    return handle_ai_chatbot(event, invoice_service, customer_service)
+                else:
+                    print("DEBUG: No message field found, using test data generation")
+            except Exception as e:
+                print(f"ERROR: Error parsing body for AI detection: {e}")
+                print(f"ERROR: Raw body was: {event.get('body', 'NO BODY')}")
+                pass
+            # Otherwise, handle as test data generation
+            print("DEBUG: Falling back to test data generation")
             return handle_generate_test_data(table)
         elif http_method == 'POST' and ('overdue' in path or 'overdue-check' in path):
             return handle_overdue_check(invoice_service)

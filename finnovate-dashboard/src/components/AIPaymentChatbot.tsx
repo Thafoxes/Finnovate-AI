@@ -152,14 +152,15 @@ const AIPaymentChatbot: React.FC = () => {
         return await sendMockInvoiceResponse(message);
       }
       
-      // Send to AI conversation endpoint
-      const response = await fetch(`${apiBaseUrl}/ai/conversation`, {
+      // Send to AI conversation endpoint (using test-data as workaround)
+      const response = await fetch(`${apiBaseUrl}/test-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           message: message,
+          conversationId: context.conversationId || 'conv_' + Date.now(),
           history: messages.slice(-5).map(msg => ({
             role: msg.sender === 'user' ? 'user' : 'assistant',
             content: msg.content
