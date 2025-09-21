@@ -127,6 +127,70 @@ def get_overdue_invoices():
             "error": f"Overdue invoice retrieval error: {str(e)}"
         }), 500
 
+@app.route('/customers', methods=['GET'])
+def get_customers():
+    try:
+        # Mock customer data matching your invoice data
+        customers = [
+            {
+                "customer_id": "CUST001",
+                "customer_name": "Acme Corporation",
+                "customer_email": "billing@acme.com",
+                "phone": "+1-555-0123",
+                "company_name": "Acme Corporation",
+                "payment_history": "Generally pays on time, occasional delays",
+                "credit_rating": "A",
+                "total_invoices": 3,
+                "total_amount_owed": 1500.00,
+                "overdue_invoices": 1,
+                "preferred_payment_method": "bank_transfer",
+                "last_payment_date": "2024-01-01",
+                "status": "active"
+            },
+            {
+                "customer_id": "CUST002", 
+                "customer_name": "TechStart Inc",
+                "customer_email": "finance@techstart.com",
+                "phone": "+1-555-0456",
+                "company_name": "TechStart Inc",
+                "payment_history": "Excellent payment record",
+                "credit_rating": "A+",
+                "total_invoices": 5,
+                "total_amount_owed": 0.00,
+                "overdue_invoices": 0,
+                "preferred_payment_method": "credit_card",
+                "last_payment_date": "2024-01-20",
+                "status": "active"
+            },
+            {
+                "customer_id": "CUST003",
+                "customer_name": "Global Solutions",
+                "customer_email": "accounts@global.com", 
+                "phone": "+1-555-0789",
+                "company_name": "Global Solutions LLC",
+                "payment_history": "Mixed payment record, requires follow-up",
+                "credit_rating": "B",
+                "total_invoices": 2,
+                "total_amount_owed": 850.00,
+                "overdue_invoices": 0,
+                "preferred_payment_method": "check",
+                "last_payment_date": "2024-01-15",
+                "status": "active"
+            }
+        ]
+        
+        return jsonify({
+            "success": True,
+            "count": len(customers),
+            "customers": customers
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Customer retrieval error: {str(e)}"
+        }), 500
+
 @app.route('/ai/chat', methods=['POST'])
 def ai_chat():
     try:

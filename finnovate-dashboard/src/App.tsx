@@ -18,6 +18,7 @@ import EditInvoice from './pages/EditInvoice';
 import CustomerList from './pages/CustomerList';
 import CustomerProfile from './pages/CustomerProfile';
 import OverdueManagement from './pages/OverdueManagement';
+import AIAssistantPage from './pages/AIAssistantPage';
 import TestingPage from './pages/TestingPage';
 
 const queryClient = new QueryClient({
@@ -60,6 +61,7 @@ function AppContent() {
               <Route path="/customers" element={<CustomerList />} />
               <Route path="/customers/:id" element={<CustomerProfile />} />
               <Route path="/overdue" element={<OverdueManagement />} />
+              <Route path="/ai-assistant" element={<AIAssistantPage />} />
             <Route path="/testing" element={<TestingPage />} />
             </Routes>
           </Layout>

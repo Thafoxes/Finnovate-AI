@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { Menu as MenuIcon, Dashboard, Receipt, People, Warning, BugReport, Brightness4, Brightness7 } from '@mui/icons-material';
+import { Menu as MenuIcon, Dashboard, Receipt, People, Warning, BugReport, Brightness4, Brightness7, SmartToy } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toggleSidebar, toggleTheme } from '../store/slices/uiSlice';
@@ -21,6 +21,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Invoices', icon: <Receipt />, path: '/invoices' },
     { text: 'Customers', icon: <People />, path: '/customers' },
     { text: 'Overdue', icon: <Warning />, path: '/overdue' },
+    { text: 'AI Assistant', icon: <SmartToy />, path: '/ai-assistant' },
     ...(process.env.NODE_ENV === 'development' ? [
       { text: 'Testing', icon: <BugReport />, path: '/testing' }
     ] : []),
