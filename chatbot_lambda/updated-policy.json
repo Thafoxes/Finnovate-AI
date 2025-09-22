@@ -1,0 +1,57 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:us-east-1:*:*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:us-east-1:*:table/InvoiceManagementTable",
+                "arn:aws:dynamodb:us-east-1:*:table/InvoiceManagementTable/index/*",
+                "arn:aws:dynamodb:us-east-1:*:table/EmailTrackingTable",
+                "arn:aws:dynamodb:us-east-1:*:table/EmailTrackingTable/index/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "bedrock:InvokeModel",
+                "bedrock:InvokeAgent"
+            ],
+            "Resource": [
+                "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0",
+                "arn:aws:bedrock:us-east-1:402782411265:agent-alias/VSKNCYS2GY/TSTALIASID"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ses:SendEmail",
+                "ses:SendRawEmail",
+                "ses:GetSendQuota",
+                "ses:GetSendStatistics"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringLike": {
+                    "ses:FromAddress": "noreply@*"
+                }
+            }
+        }
+    ]
+}
