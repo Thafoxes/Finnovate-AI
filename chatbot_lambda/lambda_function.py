@@ -200,17 +200,31 @@ class BedrockAgentHandler:
                 params_dict[param.get('name', '')] = param.get('value', '')
             
             print(f"Converted parameters: {params_dict}")
+            print(f"Looking for function: '{function_name}' in function mapping...")
             
             # Route to appropriate backend service based on function name
             function_mapping = {
-                # Invoice service functions
+                # Invoice service functions - with Bedrock Agent naming convention
+                'GET__InvoiceManagement__get_overdue_invoices': ('invoice', 'get_overdue_invoices'),
+                'GET__InvoiceManagement__get_invoice_details': ('invoice', 'get_invoice_details'), 
+                'GET__InvoiceManagement__get_customer_invoices': ('invoice', 'get_customer_invoices'),
+                'PUT__InvoiceManagement__update_invoice_status': ('invoice', 'update_invoice_status'),
+                'GET__InvoiceManagement__get_payment_summary': ('invoice', 'get_invoice_summary'),
+                'GET__InvoiceManagement__get_invoice_summary': ('invoice', 'get_invoice_summary'),
+                
+                # Customer service functions - with Bedrock Agent naming convention
+                'GET__CustomerManagement__get_customer_statistics': ('customer', 'get_customer_statistics'),
+                'GET__CustomerManagement__get_customer_by_id': ('customer', 'get_customer_by_id'),
+                'GET__CustomerManagement__get_high_risk_customers': ('customer', 'get_high_risk_customers'),
+                'GET__CustomerManagement__get_risk_analysis': ('customer', 'get_risk_analysis'),
+                
+                # Legacy function names (without prefix) for backward compatibility
                 'get_overdue_invoices': ('invoice', 'get_overdue_invoices'),
                 'get_invoice_details': ('invoice', 'get_invoice_details'), 
                 'get_customer_invoices': ('invoice', 'get_customer_invoices'),
                 'update_invoice_status': ('invoice', 'update_invoice_status'),
                 'get_payment_summary': ('invoice', 'get_invoice_summary'),
-                
-                # Customer service functions  
+                'get_invoice_summary': ('invoice', 'get_invoice_summary'),
                 'get_customer_statistics': ('customer', 'get_customer_statistics'),
                 'get_customer_by_id': ('customer', 'get_customer_by_id'),
                 'get_high_risk_customers': ('customer', 'get_high_risk_customers'),
@@ -218,6 +232,8 @@ class BedrockAgentHandler:
             }
             
             if function_name not in function_mapping:
+                print(f"ERROR: Function '{function_name}' not found in mapping!")
+                print(f"Available functions: {list(function_mapping.keys())}")
                 return {
                     "messageVersion": "1.0",
                     "response": {
@@ -226,7 +242,10 @@ class BedrockAgentHandler:
                         "functionResponse": {
                             "responseBody": {
                                 "TEXT": {
-                                    "body": json.dumps({"error": f"Unknown function: {function_name}"})
+                                    "body": json.dumps({
+                                        "error": f"Unknown function: {function_name}",
+                                        "available_functions": list(function_mapping.keys())
+                                    })
                                 }
                             }
                         }
@@ -234,17 +253,45 @@ class BedrockAgentHandler:
                 }
             
             service_type, backend_action = function_mapping[function_name]
+            print(f"Routing to service: {service_type}, action: {backend_action}")
             
             # Call appropriate backend service
             backend_response = invoke_backend_service(service_type, backend_action, params_dict)
+            print(f"Backend response received: {backend_response}")
             
-            if backend_response and backend_response.get('success'):
-                response_data = backend_response.get('data', {})
+            # Handle API Gateway response format vs direct response format
+            if backend_response:
+                # Check if this is an API Gateway response format
+                if 'statusCode' in backend_response and 'body' in backend_response:
+                    # This is an API Gateway response - parse the body
+                    if backend_response.get('statusCode') == 200:
+                        try:
+                            body_data = json.loads(backend_response['body'])
+                            if body_data.get('success'):
+                                response_data = body_data.get('data', {})
+                                print(f"Successful API Gateway response data: {response_data}")
+                            else:
+                                response_data = {"error": "Backend operation failed", "details": body_data}
+                                print(f"Backend operation failed: {body_data}")
+                        except json.JSONDecodeError as e:
+                            response_data = {"error": "Invalid JSON response", "details": str(e)}
+                            print(f"JSON decode error: {e}")
+                    else:
+                        response_data = {"error": "Backend service HTTP error", "status_code": backend_response.get('statusCode')}
+                        print(f"Backend HTTP error: {backend_response.get('statusCode')}")
+                # Direct response format (success/data structure)
+                elif backend_response.get('success'):
+                    response_data = backend_response.get('data', {})
+                    print(f"Successful direct response data: {response_data}")
+                else:
+                    response_data = {"error": "Backend service error", "details": backend_response}
+                    print(f"Backend service error: {backend_response}")
             else:
-                response_data = {"error": "Backend service error"}
+                response_data = {"error": "No response from backend service"}
+                print("No response from backend service")
             
             # Return in Bedrock Agent format
-            return {
+            agent_response = {
                 "messageVersion": "1.0",
                 "response": {
                     "actionGroup": action_group,
@@ -252,12 +299,14 @@ class BedrockAgentHandler:
                     "functionResponse": {
                         "responseBody": {
                             "TEXT": {
-                                "body": json.dumps(response_data)
+                                "body": json.dumps(response_data, default=str)
                             }
                         }
                     }
                 }
             }
+            print(f"Returning agent response: {json.dumps(agent_response)}")
+            return agent_response
             
         except Exception as e:
             print(f"ERROR in BedrockAgentHandler: {str(e)}")
@@ -376,11 +425,139 @@ def lambda_handler(event, context):
         print(f"=== CHATBOT LAMBDA HANDLER ===")
         print(f"Event: {json.dumps(event)}")
         
-        # Check if this is a Bedrock Agent action group request
-        if 'actionGroup' in event and 'function' in event:
+        # Check if this is a Bedrock Agent action group request (function call)
+        # Priority: Action group requests with apiPath (function calls)
+        if 'actionGroup' in event and 'apiPath' in event:
             print("DETECTED: Bedrock Agent Action Group Request")
+            
+            action_path = event.get('apiPath', '')
+            input_text = event.get('inputText', '')
+            session_id = event.get('sessionId', f"session_{int(time.time())}")
+            
+            print(f"Agent received message: {input_text}")
+            print(f"Session ID: {session_id}")
+            print(f"API Path: {action_path}")
+            
+            # Route based on API path
+            if '/get_overdue_invoices' in action_path:
+                print("Calling InnovateAI-Invoice with action: get_overdue_invoices")
+                backend_response = invoke_backend_service('invoice', 'get_overdue_invoices')
+                print(f"Backend response: {backend_response}")
+                
+                if backend_response and backend_response.get('statusCode') == 200:
+                    try:
+                        body_data = json.loads(backend_response['body'])
+                        if body_data.get('success'):
+                            overdue_data = body_data.get('data', {})
+                            overdue_count = overdue_data.get('total_count', 0)
+                            overdue_amount = overdue_data.get('total_amount', 0)
+                            
+                            response_text = f"There are {overdue_count} overdue invoices with a total amount of ${overdue_amount:,.2f}."
+                            
+                            print(f"Returning response: {response_text}")
+                            return {
+                                'messageVersion': '1.0',
+                                'response': {
+                                    'actionGroup': event['actionGroup'],
+                                    'apiPath': event['apiPath'], 
+                                    'httpMethod': event['httpMethod'],
+                                    'httpStatusCode': 200,
+                                    'responseBody': {
+                                        'TEXT': {
+                                            'body': response_text
+                                        }
+                                    }
+                                }
+                            }
+                    except Exception as e:
+                        print(f"Error processing backend response: {e}")
+                
+                # Error response for failed overdue invoice query
+                print("Returning error response for failed overdue invoice query")
+                return {
+                    'messageVersion': '1.0',
+                    'response': {
+                        'actionGroup': event['actionGroup'],
+                        'apiPath': event['apiPath'],
+                        'httpMethod': event['httpMethod'],
+                        'httpStatusCode': 500,
+                        'responseBody': {
+                            'TEXT': {
+                                'body': 'Unable to retrieve overdue invoice information at this time.'
+                            }
+                        }
+                    }
+                }
+            
+            # Default response for unhandled paths
+            print("Returning default error response for unhandled API path")
+            return {
+                'messageVersion': '1.0',
+                'response': {
+                    'actionGroup': event.get('actionGroup', ''),
+                    'apiPath': event.get('apiPath', ''),
+                    'httpMethod': event.get('httpMethod', 'GET'),
+                    'httpStatusCode': 400,
+                    'responseBody': {
+                        'TEXT': {
+                            'body': 'Unable to process the request.'
+                        }
+                    }
+                }
+            }
+        
+        # Check if this is a legacy Bedrock Agent action group request (function call)
+        if 'actionGroup' in event and 'function' in event and 'inputText' not in event:
+            print("DETECTED: Legacy Bedrock Agent Action Group Request")
             bedrock_handler = BedrockAgentHandler()
             return bedrock_handler.handle_agent_request(event, context)
+        
+        # Check if this is a Bedrock Agent invocation (full agent conversation)
+        if 'inputText' in event and 'agent' in event:
+            print("DETECTED: Bedrock Agent Full Invocation")
+            # This means we need to handle the conversation and return a response
+            # Extract the user message
+            user_message = event.get('inputText', '')
+            session_id = event.get('sessionId', f"session_{int(time.time())}")
+            
+            print(f"Agent received message: {user_message}")
+            print(f"Session ID: {session_id}")
+            
+            # For now, let's check if this is asking about overdue invoices
+            if 'overdue' in user_message.lower() and 'invoice' in user_message.lower():
+                # Call our backend service directly
+                backend_response = invoke_backend_service('invoice', 'get_overdue_invoices')
+                
+                if backend_response and backend_response.get('statusCode') == 200:
+                    try:
+                        body_data = json.loads(backend_response['body'])
+                        if body_data.get('success'):
+                            overdue_data = body_data.get('data', {})
+                            overdue_count = overdue_data.get('total_count', 0)
+                            overdue_amount = overdue_data.get('total_amount', 0)
+                            
+                            response_text = f"You currently have {overdue_count} overdue invoices totaling ${overdue_amount:,.2f}."
+                            
+                            return {
+                                "messageVersion": "1.0",
+                                "response": {
+                                    "responseText": response_text,
+                                    "sessionAttributes": event.get('sessionAttributes', {}),
+                                    "promptSessionAttributes": event.get('promptSessionAttributes', {})
+                                }
+                            }
+                    except Exception as e:
+                        print(f"Error processing backend response: {e}")
+            
+            # Default response for other queries
+            return {
+                "messageVersion": "1.0", 
+                "response": {
+                    "responseText": "I can help you with invoice management. Try asking about overdue invoices, payment summaries, or customer information.",
+                    "sessionAttributes": event.get('sessionAttributes', {}),
+                    "promptSessionAttributes": event.get('promptSessionAttributes', {})
+                }
+            }
         
         # Handle API Gateway requests
         http_method = event.get('httpMethod', 'GET')
