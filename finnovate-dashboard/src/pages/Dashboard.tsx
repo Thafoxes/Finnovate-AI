@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Grid, Paper, Typography, Card, CardContent, Button } from '@mui/material';
 import { Receipt, AttachMoney, Schedule, TrendingUp } from '@mui/icons-material';
-import { useInvoices } from '../hooks/useInvoices';
+import { useInvoices, useDashboardSummary } from '../hooks/useInvoices';
 import { useRawDataCalculations } from '../hooks/useRawDataCalculations';
 import AmountDisplay from '../components/AmountDisplay';
 import CustomerStats from '../components/CustomerStats';
@@ -10,14 +10,21 @@ import { CardSkeleton, ChartSkeleton } from '../components/LoadingSkeleton';
 import { OptimizedCashFlowChart, OptimizedOverdueChart, OptimizedCustomerRiskChart } from '../components/OptimizedCharts';
 
 const Dashboard: React.FC = () => {
-  const { data: invoices = [], isLoading, error } = useInvoices();
+  const { data: invoices = [], isLoading: invoicesLoading, error: invoicesError } = useInvoices();
+  const { data: dashboardSummary, isLoading: summaryLoading, error: summaryError } = useDashboardSummary();
   const { basicStats: stats, cashFlowData, customerSegments, overdueAnalysis } = useRawDataCalculations(Array.isArray(invoices) ? invoices : []);
+  
+  // Use dashboard summary if available, otherwise fall back to calculated stats
+  const displayStats = dashboardSummary || stats;
+  const isLoading = invoicesLoading || summaryLoading;
+  const error = invoicesError || summaryError;
   
   // Debug logging
   console.log('Dashboard - invoices:', invoices);
+  console.log('Dashboard - dashboardSummary:', dashboardSummary);
   console.log('Dashboard - isLoading:', isLoading);
   console.log('Dashboard - error:', error);
-  console.log('Dashboard - stats:', stats);
+  console.log('Dashboard - displayStats:', displayStats);
   
 
 
@@ -98,7 +105,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Invoices"
-            value={stats.total}
+            value={displayStats.total_invoices || displayStats.total || 0}
             icon={<Receipt fontSize="large" />}
             color="primary"
           />
@@ -106,7 +113,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Amount"
-            value={stats.totalAmount}
+            value={displayStats.total_amount || displayStats.totalAmount || 0}
             icon={<AttachMoney fontSize="large" />}
             color="success"
           />
@@ -114,7 +121,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Paid Amount"
-            value={stats.paidAmount}
+            value={displayStats.paid_amount || displayStats.paidAmount || 0}
             icon={<TrendingUp fontSize="large" />}
             color="success"
           />
@@ -122,7 +129,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Overdue Invoices"
-            value={stats.overdue}
+            value={displayStats.overdue_invoices || displayStats.overdue || 0}
             icon={<Schedule fontSize="large" />}
             color="error"
           />
@@ -138,19 +145,19 @@ const Dashboard: React.FC = () => {
             <Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Draft:</Typography>
-                <Typography>{stats.draft}</Typography>
+                <Typography>{displayStats.pending_invoices || displayStats.draft || 0}</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Sent:</Typography>
-                <Typography>{stats.sent}</Typography>
+                <Typography>{displayStats.pending_invoices || displayStats.sent || 0}</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Paid:</Typography>
-                <Typography>{stats.paid}</Typography>
+                <Typography>{displayStats.paid_invoices || displayStats.paid || 0}</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Overdue:</Typography>
-                <Typography color="error">{stats.overdue}</Typography>
+                <Typography color="error">{displayStats.overdue_invoices || displayStats.overdue || 0}</Typography>
               </Box>
             </Box>
           </Paper>
@@ -164,21 +171,24 @@ const Dashboard: React.FC = () => {
             <Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Total Invoiced:</Typography>
-                <AmountDisplay amount={stats.totalAmount} />
+                <AmountDisplay amount={displayStats.total_amount || displayStats.totalAmount || 0} />
               </Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Total Paid:</Typography>
-                <AmountDisplay amount={stats.paidAmount} />
+                <AmountDisplay amount={displayStats.paid_amount || displayStats.paidAmount || 0} />
               </Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Outstanding:</Typography>
-                <AmountDisplay amount={stats.outstandingAmount} />
+                <AmountDisplay amount={
+                  (displayStats.total_amount || displayStats.totalAmount || 0) - 
+                  (displayStats.paid_amount || displayStats.paidAmount || 0)
+                } />
               </Box>
               <Box display="flex" justifyContent="space-between" py={1}>
                 <Typography>Collection Rate:</Typography>
                 <Typography>
-                  {stats.totalAmount > 0 ? 
-                    `${((stats.paidAmount / stats.totalAmount) * 100).toFixed(1)}%` : 
+                  {(displayStats.total_amount || displayStats.totalAmount || 0) > 0 ? 
+                    `${(((displayStats.paid_amount || displayStats.paidAmount || 0) / (displayStats.total_amount || displayStats.totalAmount || 0)) * 100).toFixed(1)}%` : 
                     '0%'
                   }
                 </Typography>
@@ -188,7 +198,7 @@ const Dashboard: React.FC = () => {
         </Grid>
       </Grid>
 
-      {stats.total > 0 ? (
+      {(displayStats.total_invoices || displayStats.total || 0) > 0 ? (
         <>
           <Grid container spacing={3} mt={4}>
             <Grid item xs={12} lg={8}>

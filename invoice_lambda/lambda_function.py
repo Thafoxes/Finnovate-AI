@@ -301,7 +301,34 @@ def handle_get_invoice_summary(repository: InvoiceDomainService):
     """Handle get invoice summary request"""
     try:
         summary = repository.get_payment_summary()
-        return success_response(summary)
+        
+        # Also get actual invoice list for the frontend
+        all_invoices = repository.repository.get_all()
+        invoice_list = []
+        
+        for inv in all_invoices:
+            invoice_list.append({
+                'invoice_id': inv.invoice_id,
+                'customer_name': inv.customer_name,
+                'invoice_number': inv.invoice_number,
+                'amount': inv.amount,
+                'total_amount': inv.amount,
+                'due_date': inv.due_date,
+                'status': inv.status.value,
+                'created_date': inv.created_date,
+                'items': inv.items,
+                'is_overdue': inv.is_overdue(),
+                'days_overdue': inv.calculate_days_overdue(),
+                'paid_amount': inv.amount if inv.status.value == 'PAID' else 0,
+                'remaining_balance': 0 if inv.status.value == 'PAID' else inv.amount
+            })
+        
+        # Return both summary and invoice list
+        return success_response({
+            'summary': summary,
+            'invoices': invoice_list,  # Add this for the frontend
+            'total_count': len(invoice_list)
+        })
     except Exception as e:
         return error_response(f"Error getting invoice summary: {str(e)}")
 
@@ -448,36 +475,80 @@ def error_response(error_message, status_code=500):
 def lambda_handler(event, context):
     """
     Invoice Lambda Handler - Routes internal service calls
-    Designed to be called by other Lambdas, not directly from API Gateway
+    Invoice Lambda Handler - Routes both internal and API Gateway calls
     """
     try:
         print(f"=== INVOICE LAMBDA HANDLER ===")
         print(f"Event: {json.dumps(event)}")
         
-        # Initialize repository and services
-        repository = InvoiceRepository(INVOICE_TABLE_NAME)
-        domain_service = InvoiceDomainService(repository)
+        # Handle OPTIONS requests for CORS
+        if event.get('httpMethod') == 'OPTIONS':
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'
+                },
+                'body': ''
+            }
         
-        # Get action and parameters from event
-        action = event.get('action', '')
-        params = event.get('params', {})
+        # Handle API Gateway calls (has httpMethod)
+        if 'httpMethod' in event:
+            return handle_api_gateway_request(event)
         
-        print(f"Action: {action}, Params: {params}")
-        
-        # Route based on action
-        if action == 'get_invoice_summary':
-            return handle_get_invoice_summary(domain_service)
-        elif action == 'get_overdue_invoices':
-            return handle_get_overdue_invoices(repository)
-        elif action == 'get_invoice_details':
-            return handle_get_invoice_details(repository, params)
-        elif action == 'get_customer_invoices':
-            return handle_get_customer_invoices(repository, params)
-        elif action == 'update_invoice_status':
-            return handle_update_invoice_status(repository, params)
+        # Handle internal Lambda calls (has action) - your original logic
         else:
-            return error_response(f"Unknown action: {action}", 400)
+            return handle_internal_request(event)
             
     except Exception as e:
         print(f"Invoice Lambda error: {e}")
         return error_response(f"Internal server error: {str(e)}")
+
+def handle_api_gateway_request(event):
+    """Handle requests from API Gateway"""
+    http_method = event.get('httpMethod')
+    path = event.get('path', '')
+    query_params = event.get('queryStringParameters') or {}
+    
+    # Initialize repository and services
+    repository = InvoiceRepository(INVOICE_TABLE_NAME)
+    domain_service = InvoiceDomainService(repository)
+    
+    if http_method == 'GET':
+        if query_params.get('customer_id'):
+            return handle_get_customer_invoices(repository, query_params)
+        elif query_params.get('invoice_id'):
+            return handle_get_invoice_details(repository, query_params)
+        elif 'overdue' in path:
+            return handle_get_overdue_invoices(repository)
+        else:
+            return handle_get_invoice_summary(domain_service)
+    else:
+        return error_response(f"Method {http_method} not allowed", 405)
+
+def handle_internal_request(event):
+    """Handle requests from other Lambda functions"""
+    # Initialize repository and services
+    repository = InvoiceRepository(INVOICE_TABLE_NAME)
+    domain_service = InvoiceDomainService(repository)
+    
+    # Get action and parameters from event
+    action = event.get('action', '')
+    params = event.get('params', {})
+    
+    print(f"Internal Action: {action}, Params: {params}")
+    
+    # Route based on action
+    if action == 'get_invoice_summary':
+        return handle_get_invoice_summary(domain_service)
+    elif action == 'get_overdue_invoices':
+        return handle_get_overdue_invoices(repository)
+    elif action == 'get_invoice_details':
+        return handle_get_invoice_details(repository, params)
+    elif action == 'get_customer_invoices':
+        return handle_get_customer_invoices(repository, params)
+    elif action == 'update_invoice_status':
+        return handle_update_invoice_status(repository, params)
+    else:
+        return error_response(f"Unknown action: {action}", 400)

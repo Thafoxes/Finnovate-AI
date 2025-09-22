@@ -16,6 +16,18 @@ export const useInvoices = () => {
   });
 };
 
+export const useDashboardSummary = () => {
+  return useQuery({
+    queryKey: ['dashboard-summary'],
+    queryFn: () => apiService.getDashboardSummary(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    retry: 2,
+  });
+};
+
 export const useInvoice = (invoiceId: string) => {
   const queryClient = useQueryClient();
   
