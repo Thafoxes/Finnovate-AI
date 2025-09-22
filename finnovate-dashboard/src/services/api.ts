@@ -267,7 +267,10 @@ class ApiService {
       const queryString = params.toString();
       const endpoint = `/customers${queryString ? `?${queryString}` : ''}`;
       
+      console.log('Fetching customers from:', endpoint);
       const response = await this.request<any>(endpoint);
+      
+      console.log('Customer API Response:', response);
       
       let customers = [];
       if (response.success && response.data && response.data.customers) {
@@ -276,14 +279,35 @@ class ApiService {
         customers = response.data;
       } else if (Array.isArray(response)) {
         customers = response;
+      } else if (response.success && response.data) {
+        // Check if data itself has customer properties
+        if (response.data.customer_id) {
+          customers = [response.data];
+        } else {
+          console.error('Unexpected customers response format:', response);
+          return [];
+        }
       } else {
         console.error('Unexpected customers response format:', response);
         return [];
       }
       
       return customers.map((customer: any) => ({
-        ...customer,
-        outstanding_amount: customer.overdue_amount || 0
+        customer_id: customer.customer_id,
+        customer_name: customer.name || customer.customer_name,
+        name: customer.name || customer.customer_name,
+        email: customer.email,
+        phone: customer.phone,
+        address: customer.address,
+        risk_score: customer.risk_score,
+        risk_level: customer.risk_level,
+        total_invoices: customer.total_invoices,
+        total_amount: customer.total_amount,
+        overdue_count: customer.overdue_count,
+        outstanding_amount: customer.total_amount || 0,
+        overdue_amount: customer.overdue_count > 0 ? customer.total_amount * 0.3 : 0, // Estimate
+        created_at: customer.created_date,
+        updated_at: customer.updated_date || customer.created_date
       }));
     } catch (error) {
       console.error('Error fetching customers from API:', error);

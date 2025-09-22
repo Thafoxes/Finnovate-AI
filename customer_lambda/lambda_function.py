@@ -359,6 +359,78 @@ def handle_get_risk_analysis(domain_service: CustomerDomainService):
     except Exception as e:
         return error_response(f"Error getting risk analysis: {str(e)}")
 
+def create_sample_data():
+    """Create sample customer data for testing"""
+    repository = CustomerRepository(CUSTOMER_TABLE_NAME)
+    
+    sample_customers = [
+        Customer(
+            customer_id="CUST-001",
+            name="Acme Corp",
+            email="finance@acmecorp.com",
+            phone="+1-555-0101",
+            address="123 Business St, NY 10001",
+            risk_score=75.0,
+            total_invoices=5,
+            total_amount=15000.0,
+            overdue_count=2,
+            created_date="2024-01-01T00:00:00Z"
+        ),
+        Customer(
+            customer_id="CUST-002",
+            name="TechStart LLC",
+            email="billing@techstart.com",
+            phone="+1-555-0102",
+            address="456 Innovation Ave, CA 94105",
+            risk_score=25.0,
+            total_invoices=3,
+            total_amount=7500.0,
+            overdue_count=0,
+            created_date="2024-01-15T00:00:00Z"
+        ),
+        Customer(
+            customer_id="CUST-003",
+            name="Global Industries",
+            email="ap@globalind.com",
+            phone="+1-555-0103",
+            address="789 Enterprise Blvd, TX 77001",
+            risk_score=90.0,
+            total_invoices=8,
+            total_amount=25000.0,
+            overdue_count=5,
+            created_date="2023-12-01T00:00:00Z"
+        ),
+        Customer(
+            customer_id="CUST-004",
+            name="Small Business Co",
+            email="owner@smallbiz.com",
+            phone="+1-555-0104",
+            address="321 Main St, OH 44101",
+            risk_score=45.0,
+            total_invoices=2,
+            total_amount=3000.0,
+            overdue_count=1,
+            created_date="2024-02-01T00:00:00Z"
+        ),
+        Customer(
+            customer_id="CUST-005",
+            name="Enterprise Solutions",
+            email="accounts@enterprise.com",
+            phone="+1-555-0105",
+            address="555 Corporate Way, WA 98101",
+            risk_score=15.0,
+            total_invoices=12,
+            total_amount=45000.0,
+            overdue_count=0,
+            created_date="2023-11-01T00:00:00Z"
+        )
+    ]
+    
+    for customer in sample_customers:
+        repository.save(customer)
+    
+    return {"message": "Sample customer data created successfully", "count": len(sample_customers)}
+
 def success_response(data=None, message=None, status_code=200):
     """Create standardized success response"""
     response_body = {'success': True}
@@ -398,37 +470,96 @@ def error_response(error_message, status_code=500):
 
 def lambda_handler(event, context):
     """
-    Customer Lambda Handler - Routes internal service calls
-    Designed to be called by other Lambdas, not directly from API Gateway
+    Customer Lambda Handler - Routes both internal and API Gateway calls
     """
     try:
         print(f"=== CUSTOMER LAMBDA HANDLER ===")
         print(f"Event: {json.dumps(event)}")
         
-        # Initialize repository and services
-        repository = CustomerRepository(CUSTOMER_TABLE_NAME)
-        domain_service = CustomerDomainService(repository)
+        # Handle OPTIONS requests for CORS
+        if event.get('httpMethod') == 'OPTIONS':
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'
+                },
+                'body': ''
+            }
         
-        # Get action and parameters from event
-        action = event.get('action', '')
-        params = event.get('params', {})
+        # Handle API Gateway calls (has httpMethod)
+        if 'httpMethod' in event:
+            return handle_api_gateway_request(event)
         
-        print(f"Action: {action}, Params: {params}")
-        
-        # Route based on action
-        if action == 'get_customer_statistics':
-            return handle_get_customer_statistics(domain_service)
-        elif action == 'get_customer_by_id':
-            return handle_get_customer_by_id(repository, params)
-        elif action == 'get_all_customers':
-            return handle_get_all_customers(repository, params)
-        elif action == 'get_high_risk_customers':
-            return handle_get_high_risk_customers(repository, params)
-        elif action == 'get_risk_analysis':
-            return handle_get_risk_analysis(domain_service)
+        # Handle internal Lambda calls (has action) - your original logic
         else:
-            return error_response(f"Unknown action: {action}", 400)
+            return handle_internal_request(event)
             
     except Exception as e:
         print(f"Customer Lambda error: {e}")
         return error_response(f"Internal server error: {str(e)}")
+
+def handle_api_gateway_request(event):
+    """Handle requests from API Gateway"""
+    http_method = event.get('httpMethod')
+    path = event.get('path', '')
+    query_params = event.get('queryStringParameters') or {}
+    
+    print(f"API Gateway Request: {http_method} {path}")
+    print(f"Query Params: {query_params}")
+    
+    # Initialize repository and services
+    repository = CustomerRepository(CUSTOMER_TABLE_NAME)
+    domain_service = CustomerDomainService(repository)
+    
+    if http_method == 'GET':
+        if query_params.get('customer_id'):
+            return handle_get_customer_by_id(repository, query_params)
+        elif query_params.get('risk_filter') == 'high':
+            return handle_get_high_risk_customers(repository, query_params)
+        elif 'statistics' in path:
+            return handle_get_customer_statistics(domain_service)
+        elif 'risk-analysis' in path:
+            return handle_get_risk_analysis(domain_service)
+        else:
+            return handle_get_all_customers(repository, query_params)
+    elif http_method == 'POST':
+        # Handle POST requests for creating customers
+        return error_response("POST method not implemented yet", 501)
+    elif http_method == 'PUT':
+        # Handle PUT requests for updating customers
+        return error_response("PUT method not implemented yet", 501)
+    elif http_method == 'DELETE':
+        # Handle DELETE requests
+        return error_response("DELETE method not implemented yet", 501)
+    else:
+        return error_response(f"Method {http_method} not allowed", 405)
+
+def handle_internal_request(event):
+    """Handle requests from other Lambda functions"""
+    # Initialize repository and services
+    repository = CustomerRepository(CUSTOMER_TABLE_NAME)
+    domain_service = CustomerDomainService(repository)
+    
+    # Get action and parameters from event
+    action = event.get('action', '')
+    params = event.get('params', {})
+    
+    print(f"Internal Action: {action}, Params: {params}")
+    
+    # Route based on action
+    if action == 'get_customer_statistics':
+        return handle_get_customer_statistics(domain_service)
+    elif action == 'get_customer_by_id':
+        return handle_get_customer_by_id(repository, params)
+    elif action == 'get_all_customers':
+        return handle_get_all_customers(repository, params)
+    elif action == 'get_high_risk_customers':
+        return handle_get_high_risk_customers(repository, params)
+    elif action == 'get_risk_analysis':
+        return handle_get_risk_analysis(domain_service)
+    elif action == 'create_sample_data':
+        return success_response(create_sample_data())
+    else:
+        return error_response(f"Unknown action: {action}", 400)

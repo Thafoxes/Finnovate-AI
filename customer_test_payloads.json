@@ -1,0 +1,29 @@
+{
+  "API Gateway GET Customers": {
+    "httpMethod": "GET",
+    "path": "/customers",
+    "queryStringParameters": null,
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "API Gateway OPTIONS": {
+    "httpMethod": "OPTIONS",
+    "path": "/customers",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "Internal Create Sample Data": {
+    "action": "create_sample_data",
+    "params": {}
+  },
+  "Internal Get All Customers": {
+    "action": "get_all_customers",
+    "params": {}
+  },
+  "Internal Get Customer Stats": {
+    "action": "get_customer_statistics",
+    "params": {}
+  }
+}
