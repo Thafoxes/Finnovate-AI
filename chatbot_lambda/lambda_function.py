@@ -130,12 +130,25 @@ def invoke_payment_intelligence_agent(message, session_id=None):
         # Get comprehensive context from both Invoice and Customer services
         context_data = get_comprehensive_context_for_agent()
         
-        # Enhanced message with context
-        enhanced_message = f"""{context_data}
+        # Enhanced message with better context and instructions
+        enhanced_message = f"""You are an expert Financial Intelligence Assistant for Finnovate AI's Invoice Management System. 
+
+CURRENT FINANCIAL DATA:
+{context_data}
+
+TASK: Answer the user's question using the specific data provided above. Be direct, precise, and helpful.
+
+IMPORTANT INSTRUCTIONS:
+- Use exact numbers from the data context when answering questions
+- For overdue invoice questions, provide the exact count and total amount
+- For customer analysis, use the risk distribution and customer value data
+- Be conversational but professional
+- If asked for details, break down the information clearly
+- Always base your answers on the actual data provided
 
 USER QUESTION: {message}
 
-Please provide intelligent insights based on the above invoice data context. If the user is asking about cash flow, overdue invoices, customer analysis, or payment patterns, use the provided data context to give specific answers."""
+Provide a helpful, data-driven response based on the financial information above:"""
         
         print(f"Invoking Bedrock Agent with enhanced message: {enhanced_message[:200]}...")
         
